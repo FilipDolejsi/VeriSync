@@ -25,7 +25,6 @@ dependencies:
     # registry
     - pyyaml
     # payments
-    - moneydevkit
     - l402
     # rl router
     - sentence-transformers

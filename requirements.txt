@@ -1,4 +1,5 @@
-anthropic
+groq
+google-genai
 langgraph
 langchain-core
 fastapi
