@@ -1,6 +1,5 @@
-anthropic
 groq
-google-generativeai
+google-genai
 langgraph
 langchain-core
 fastapi

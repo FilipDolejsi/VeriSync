@@ -12,7 +12,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 import httpx
-import google.generativeai as genai
+from google import genai
 from groq import Groq
 
 from pipeline.chunker import PRChunk
@@ -125,7 +125,7 @@ def classifier_node(state: ChunkReviewState) -> ChunkReviewState:
 
         prompt = CLASSIFIER_PROMPT.format(diff_text=diff_text)
         response = groq_client.chat.completions.create(
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=50,
             temperature=0.3,
@@ -325,9 +325,11 @@ def verifier_node(
         )
 
         genai_api_key = os.getenv("GEMINI_API_KEY")
-        genai.configure(api_key=genai_api_key)
-        model = genai.GenerativeModel("gemini-pro")
-        response = model.generate_content(prompt)
+        genai_client = genai.Client(api_key=genai_api_key)
+        response = genai_client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+        )
 
         # Parse Gemini's verification response
         verifier_response = response.text.lower()
@@ -458,9 +460,11 @@ def synthesiser_node(
         )
 
         genai_api_key = os.getenv("GEMINI_API_KEY")
-        genai.configure(api_key=genai_api_key)
-        model = genai.GenerativeModel("gemini-pro")
-        response = model.generate_content(prompt)
+        genai_client = genai.Client(api_key=genai_api_key)
+        response = genai_client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+        )
 
         # Parse Gemini's response
         synthesis_text = response.text

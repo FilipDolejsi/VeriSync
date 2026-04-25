@@ -9,6 +9,9 @@ import sys
 import logging
 from dotenv import load_dotenv
 
+# Ensure project root is on path so 'pipeline' package is importable
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 # Load environment variables
 load_dotenv()
 
@@ -37,12 +40,10 @@ def test_groq_models():
         logger.error("❌ groq package not installed. Run: pip install groq")
         return False
 
-    # Groq models to test
+    # Groq models to test (updated to current non-decommissioned models)
     models = [
-        "llama3-8b-8192",
-        "llama3-70b-8192",
-        "mixtral-8x7b-32768",
-        "gemma-7b-it",
+        "llama-3.1-8b-instant",
+        "llama-3.3-70b-versatile",
     ]
 
     client = Groq(api_key=groq_api_key)
@@ -88,19 +89,18 @@ def test_gemini_api():
     logger.info(f"✓ Gemini API key found: {gemini_api_key[:10]}...")
 
     try:
-        import google.generativeai as genai
+        from google import genai
     except ImportError:
-        logger.error("❌ google-generativeai package not installed.")
-        logger.error("   Run: pip install google-generativeai")
+        logger.error("❌ google-genai package not installed.")
+        logger.error("   Run: pip install google-genai")
         return False
 
     try:
         logger.info("\n📝 Configuring Gemini API...")
-        genai.configure(api_key=gemini_api_key)
+        client = genai.Client(api_key=gemini_api_key)
         logger.info("✓ Gemini API configured")
 
         logger.info("\n📝 Testing Gemini inference...")
-        model = genai.GenerativeModel("gemini-pro")
 
         test_prompt = """Analyze this code diff and classify it in one word:
 
@@ -116,7 +116,10 @@ def test_gemini_api():
 
 Respond with ONLY one word classification from: logic, style, security, performance, tests, docs, refactor"""
 
-        response = model.generate_content(test_prompt)
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=test_prompt,
+        )
         result = response.text.strip()
 
         logger.info(f"✓ Gemini responded: {result}")
@@ -184,7 +187,7 @@ def test_groq_classifier():
 
         prompt = CLASSIFIER_PROMPT.format(diff_text=sample_diff)
         response = client.chat.completions.create(
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=50,
             temperature=0.3,
@@ -229,13 +232,12 @@ def test_gemini_verifier():
         return False
 
     try:
-        import google.generativeai as genai
+        from google import genai
         from pipeline.prompts import VERIFIER_PROMPT
 
         logger.info("\n📝 Testing verifier node with Gemini...")
 
-        genai.configure(api_key=gemini_api_key)
-        model = genai.GenerativeModel("gemini-pro")
+        client = genai.Client(api_key=gemini_api_key)
 
         # Sample diff and findings for testing
         sample_diff = """--- a/auth.py
@@ -252,7 +254,10 @@ def test_gemini_verifier():
 
         prompt = VERIFIER_PROMPT.format(diff_text=sample_diff, findings=sample_findings)
 
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+        )
         verification_text = response.text.lower()
 
         logger.info(f"✓ Verifier responded: {verification_text[:100]}...")
