@@ -60,10 +60,7 @@ Testing:
 Environment Variables Required
 -------------------------------
 
-Create or update .env file with:
-
-GROQ_API_KEY=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
-GEMINI_API_KEY=AIzaSyB0vRzVKpWJypAxAN9XbkYyC3gPJijKaic
+Cr
 
 Running the Application
 -----------------------
