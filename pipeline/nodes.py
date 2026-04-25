@@ -6,6 +6,7 @@ Each node receives ChunkReviewState and returns updated ChunkReviewState.
 
 import logging
 import json
+import os
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -119,7 +120,8 @@ def classifier_node(state: ChunkReviewState) -> ChunkReviewState:
         diff_text = "\n".join(state.chunk.lines)
 
         # Call Groq API with Llama 3
-        groq_client = Groq()
+        groq_api_key = os.getenv("GROQ_API_KEY")
+        groq_client = Groq(api_key=groq_api_key)
 
         prompt = CLASSIFIER_PROMPT.format(diff_text=diff_text)
         response = groq_client.chat.completions.create(
