@@ -12,7 +12,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 import httpx
-from anthropic import Anthropic
+import google.generativeai as genai
 from groq import Groq
 
 from pipeline.chunker import PRChunk
@@ -294,13 +294,12 @@ def reviewer_node(
 
 def verifier_node(
     state: ChunkReviewState,
-    anthropic_client: Anthropic,
     db_store,
 ) -> ChunkReviewState:
     """
-    Verify findings using Claude and write episode to SQLite.
+    Verify findings using Gemini and write episode to SQLite.
 
-    Calls: anthropic.messages.create() with VERIFIER_PROMPT
+    Calls: gemini with VERIFIER_PROMPT
     Sets: state.verifier_accepted
     Writes: episode row to DB
     """
@@ -319,20 +318,19 @@ def verifier_node(
 
         diff_text = "\n".join(state.chunk.lines)
 
-        # Call Claude verifier
+        # Call Gemini verifier
         prompt = VERIFIER_PROMPT.format(
             diff_text=diff_text,
             findings=findings_text,
         )
 
-        response = anthropic_client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=1024,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        genai_api_key = os.getenv("GEMINI_API_KEY")
+        genai.configure(api_key=genai_api_key)
+        model = genai.GenerativeModel("gemini-pro")
+        response = model.generate_content(prompt)
 
-        # Parse Claude's verification response
-        verifier_response = response.content[0].text.lower()
+        # Parse Gemini's verification response
+        verifier_response = response.text.lower()
         state.verifier_accepted = (
             "accept" in verifier_response or "valid" in verifier_response
         )
@@ -420,13 +418,12 @@ def escalate_node(state: ChunkReviewState, registry) -> ChunkReviewState:
 def synthesiser_node(
     pr_id: str,
     all_findings: List[Finding],
-    anthropic_client: Anthropic,
 ) -> ReviewReport:
     """
     Synthesize all findings from chunks into final PR review report.
 
     Runs once per PR after all chunks are processed.
-    Calls: claude-sonnet with SYNTHESISER_PROMPT
+    Calls: gemini with SYNTHESISER_PROMPT
     Returns: ReviewReport with summary + priority_actions
     """
     try:
@@ -439,7 +436,7 @@ def synthesiser_node(
         major = [f for f in all_findings if f.severity == "major"]
         minor = [f for f in all_findings if f.severity == "minor"]
 
-        # Format findings for Claude
+        # Format findings for Gemini
         findings_text = "CRITICAL:\n"
         findings_text += (
             "\n".join([f"- {f.issue}" for f in critical]) if critical else "None\n"
@@ -453,21 +450,20 @@ def synthesiser_node(
             "\n".join([f"- {f.issue}" for f in minor]) if minor else "None\n"
         )
 
-        # Call Claude synthesiser
+        # Call Gemini synthesiser
         prompt = SYNTHESISER_PROMPT.format(
             pr_id=pr_id,
             findings=findings_text,
             total_findings=len(all_findings),
         )
 
-        response = anthropic_client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=2048,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        genai_api_key = os.getenv("GEMINI_API_KEY")
+        genai.configure(api_key=genai_api_key)
+        model = genai.GenerativeModel("gemini-pro")
+        response = model.generate_content(prompt)
 
-        # Parse Claude's response
-        synthesis_text = response.content[0].text
+        # Parse Gemini's response
+        synthesis_text = response.text
 
         # Try to extract structured data from response
         # Format: SUMMARY: ..., PRIORITY_ACTIONS: [...]
