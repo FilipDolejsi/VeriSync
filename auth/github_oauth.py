@@ -45,7 +45,7 @@ async def callback(request: Request):
     github_id = str(profile["id"])
     now = datetime.now(timezone.utc).isoformat()
 
-    async with await get_db() as db:
+    async with get_db() as db:
         existing = await get_user_by_github_id(db, github_id)
 
         if existing:
@@ -81,5 +81,5 @@ async def get_current_user(request: Request) -> dict | None:
     user_id = request.session.get("user_id")
     if not user_id:
         return None
-    async with await get_db() as db:
+    async with get_db() as db:
         return await get_user_by_id(db, user_id)

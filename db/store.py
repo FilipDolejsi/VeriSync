@@ -1,13 +1,18 @@
 import os
+import contextlib
 import aiosqlite
 
 DB_PATH = os.environ.get("DATABASE_PATH", "./verisync.db")
 
 
-async def get_db() -> aiosqlite.Connection:
+@contextlib.asynccontextmanager
+async def get_db():
     db = await aiosqlite.connect(DB_PATH)
     db.row_factory = aiosqlite.Row
-    return db
+    try:
+        yield db
+    finally:
+        await db.close()
 
 
 async def init_db():
@@ -30,7 +35,8 @@ async def init_db():
                 repo_full_name TEXT NOT NULL,
                 webhook_id INTEGER,
                 webhook_secret TEXT,
-                active INTEGER DEFAULT 1
+                active INTEGER DEFAULT 1,
+                UNIQUE(user_id, repo_full_name)
             );
 
             CREATE TABLE IF NOT EXISTS pull_requests (
@@ -138,7 +144,7 @@ async def store_watched_repo(db: aiosqlite.Connection, watched: dict):
     await db.execute("""
         INSERT INTO watched_repos (id, user_id, repo_full_name, webhook_id, webhook_secret, active)
         VALUES (:id, :user_id, :repo_full_name, :webhook_id, :webhook_secret, :active)
-        ON CONFLICT(id) DO UPDATE SET
+        ON CONFLICT(user_id, repo_full_name) DO UPDATE SET
             webhook_id=excluded.webhook_id,
             webhook_secret=excluded.webhook_secret,
             active=excluded.active

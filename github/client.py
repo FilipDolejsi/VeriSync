@@ -3,8 +3,6 @@ import secrets
 
 from github import Github, GithubException
 
-from models import WatchedRepo
-
 
 def _gh(token: str) -> Github:
     return Github(token)
