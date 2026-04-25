@@ -1,0 +1,42 @@
+models:
+  - id: llama3-8b
+    name: "llama3:8b"
+    provider: ollama
+    cost_sats: 5
+    endpoint_url: "http://localhost:8000/worker/llama3-8b"
+    capability_tags: ["style", "classify"]
+
+  - id: mistral-7b
+    name: "mistral:7b"
+    provider: ollama
+    cost_sats: 10
+    endpoint_url: "http://localhost:8000/worker/mistral-7b"
+    capability_tags: ["style", "logic", "classify"]
+
+  - id: gemma2-9b
+    name: "gemma2:9b"
+    provider: ollama
+    cost_sats: 12
+    endpoint_url: "http://localhost:8000/worker/gemma2-9b"
+    capability_tags: ["logic", "test-coverage"]
+
+  - id: llama3-70b
+    name: "llama3:70b"
+    provider: ollama
+    cost_sats: 18
+    endpoint_url: "http://localhost:8000/worker/llama3-70b"
+    capability_tags: ["logic", "architecture", "test-coverage"]
+
+  - id: claude-haiku
+    name: "claude-haiku-4-5"
+    provider: anthropic
+    cost_sats: 40
+    endpoint_url: "http://localhost:8000/worker/claude-haiku"
+    capability_tags: ["logic", "security", "architecture"]
+
+  - id: claude-sonnet
+    name: "claude-sonnet-4-5"
+    provider: anthropic
+    cost_sats: 150
+    endpoint_url: "http://localhost:8000/worker/claude-sonnet"
+    capability_tags: ["security", "architecture", "logic"]
