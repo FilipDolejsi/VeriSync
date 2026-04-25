@@ -3,28 +3,40 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from starlette.middleware.sessions import SessionMiddleware
 
 from auth.github_oauth import router as auth_router
+from gh.webhook import router as webhook_router
+from dashboard.events import router as events_router
 from db.store import init_db
+from registry.loader import load_registry
+from workers.factory import create_worker_router
 
-app = FastAPI(title="VeriSync")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    registry = load_registry()
+    worker_router = create_worker_router(registry)
+    app.include_router(worker_router)
+    yield
+
+
+app = FastAPI(title="VeriSync", lifespan=lifespan)
 
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ["SESSION_SECRET_KEY"],
     session_cookie="verisync_session",
-    max_age=28800,  # 8 hours
+    max_age=28800,
     https_only=False,  # flip to True in prod
 )
 
 app.include_router(auth_router)
-
-
-@app.on_event("startup")
-async def startup():
-    await init_db()
+app.include_router(webhook_router)
+app.include_router(events_router)
 
 
 @app.get("/")

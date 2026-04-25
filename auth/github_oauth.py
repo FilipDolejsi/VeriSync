@@ -62,6 +62,7 @@ async def callback(request: Request):
             "avatar_url": profile.get("avatar_url", ""),
             "wallet_id": wallet_id,
             "sat_balance": existing["sat_balance"] if existing else 0,
+            "github_token": access_token,
             "created_at": existing["created_at"] if existing else now,
             "last_login": now,
         })
