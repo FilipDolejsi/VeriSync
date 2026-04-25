@@ -3,7 +3,9 @@
     "allow": [
       "Bash(conda run *)",
       "PowerShell(& \"C:\\\\Users\\\\user\\\\miniconda3\\\\envs\\\\verisync\\\\python.exe\" -m pip install google-genai --quiet 2>&1)",
-      "PowerShell(& \"C:\\\\Users\\\\user\\\\miniconda3\\\\envs\\\\verisync\\\\python.exe\" \"C:\\\\Users\\\\user\\\\Desktop\\\\verisync\\\\tests\\\\test_llm_providers.py\" 2>&1)"
+      "PowerShell(& \"C:\\\\Users\\\\user\\\\miniconda3\\\\envs\\\\verisync\\\\python.exe\" \"C:\\\\Users\\\\user\\\\Desktop\\\\verisync\\\\tests\\\\test_llm_providers.py\" 2>&1)",
+      "Bash(git fetch *)",
+      "Bash(git diff-tree *)"
     ]
   }
 }
