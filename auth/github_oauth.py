@@ -8,8 +8,9 @@ from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 
 from db.store import get_db, upsert_user, get_user_by_github_id, get_user_by_id
+from payments.wallet import get_wallet
 
-router = APIRouter()
+router = APIRouter(prefix="/auth")
 
 oauth = OAuth()
 oauth.register(
@@ -18,17 +19,17 @@ oauth.register(
     client_secret=os.environ["GITHUB_CLIENT_SECRET"],
     access_token_url="https://github.com/login/oauth/access_token",
     authorize_url="https://github.com/login/oauth/authorize",
-    client_kwargs={"scope": "repo user"},
+    client_kwargs={"scope": "repo,read:user,admin:repo_hook"},
 )
 
 
 @router.get("/login")
 async def login(request: Request):
-    redirect_uri = request.url_for("callback")
+    redirect_uri = os.environ["GITHUB_REDIRECT_URI"]
     return await oauth.github.authorize_redirect(request, redirect_uri)
 
 
-@router.get("/auth/callback")
+@router.get("/callback")
 async def callback(request: Request):
     token = await oauth.github.authorize_access_token(request)
     access_token = token["access_token"]
@@ -46,14 +47,20 @@ async def callback(request: Request):
 
     async with await get_db() as db:
         existing = await get_user_by_github_id(db, github_id)
-        user_id = existing["id"] if existing else str(uuid.uuid4())
+
+        if existing:
+            user_id = existing["id"]
+            wallet_id = existing["wallet_id"]
+        else:
+            user_id = str(uuid.uuid4())
+            wallet_id = get_wallet().create_wallet(user_id)
 
         await upsert_user(db, {
             "id": user_id,
             "github_id": github_id,
             "username": profile["login"],
             "avatar_url": profile.get("avatar_url", ""),
-            "wallet_id": existing["wallet_id"] if existing else "",
+            "wallet_id": wallet_id,
             "sat_balance": existing["sat_balance"] if existing else 0,
             "created_at": existing["created_at"] if existing else now,
             "last_login": now,
@@ -61,7 +68,6 @@ async def callback(request: Request):
 
     request.session["user_id"] = user_id
     request.session["github_token"] = access_token
-
     return RedirectResponse(url="/dashboard")
 
 

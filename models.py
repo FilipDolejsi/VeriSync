@@ -1,34 +1,19 @@
 from __future__ import annotations
 
-from enum import Enum
-from typing import List, Optional
+from datetime import datetime
+from typing import List, Literal, Optional
 
-from pydantic import BaseModel, Field
-
-
-class ClassifierTag(str, Enum):
-    style = "style"
-    logic = "logic"
-    security = "security"
-    architecture = "architecture"
-    test = "test"
+from pydantic import BaseModel
 
 
-class Severity(str, Enum):
-    critical = "critical"
-    warning = "warning"
-    info = "info"
+class ModelEntry(BaseModel):
+    id: str
+    name: str
+    provider: Literal["ollama", "anthropic"]
+    cost_sats: int
+    endpoint_url: str
+    capability_tags: List[str]
 
-
-class ReviewStatus(str, Enum):
-    pending = "pending"
-    in_progress = "in_progress"
-    complete = "complete"
-    failed = "failed"
-    merged = "merged"
-
-
-# ── Core contracts ────────────────────────────────────────────────────────────
 
 class User(BaseModel):
     id: str
@@ -37,8 +22,15 @@ class User(BaseModel):
     avatar_url: str
     wallet_id: str
     sat_balance: int = 0
-    created_at: str
-    last_login: str
+
+
+class WatchedRepo(BaseModel):
+    id: str
+    user_id: str
+    repo_full_name: str
+    webhook_id: int
+    webhook_secret: str
+    active: bool = True
 
 
 class PRChunk(BaseModel):
@@ -49,51 +41,64 @@ class PRChunk(BaseModel):
     language: str
     diff_text: str
     lines_changed: int
-    classifier_tag: Optional[ClassifierTag] = None
+    classifier_tag: Optional[str] = None
 
 
 class Finding(BaseModel):
     id: str
     chunk_id: str
     model_id: str
-    severity: Severity
-    category: str
-    line_number: int
+    severity: Literal["critical", "warning", "info"]
+    category: Literal["security", "logic", "style", "performance", "test-coverage"]
+    line_number: Optional[int]
     description: str
     suggestion: str
-    confidence: float = Field(ge=0.0, le=1.0)
+    confidence: float
     accepted: bool = False
 
 
 class ReviewReport(BaseModel):
     pr_id: str
     pr_url: str
-    status: ReviewStatus
     total_cost_sats: int
-    findings: List[Finding] = Field(default_factory=list)
-    passed_chunks: int = 0
-    summary: str = ""
-
-    @property
-    def critical_count(self) -> int:
-        return sum(1 for f in self.findings if f.severity == Severity.critical)
-
-    @property
-    def warning_count(self) -> int:
-        return sum(1 for f in self.findings if f.severity == Severity.warning)
-
-    @property
-    def info_count(self) -> int:
-        return sum(1 for f in self.findings if f.severity == Severity.info)
+    findings: List[Finding]
+    summary: str
+    critical_count: int
+    warning_count: int
+    info_count: int
+    passed_chunks: int
+    model_breakdown: dict
 
 
 class Transaction(BaseModel):
     id: str
     user_id: str
+    to_model_id: str
     amount_sats: int
-    direction: str  # "debit" | "credit"
-    description: str
-    timestamp: str
-    pr_id: Optional[str] = None
-    chunk_id: Optional[str] = None
-    model_id: Optional[str] = None
+    chunk_id: str
+    timestamp: datetime
+
+
+class RouterDecision(BaseModel):
+    chunk_id: str
+    predicted_model_id: str
+    predicted_tier_index: int
+    confidence: float
+    used_router: bool
+
+
+class ChunkReviewState(BaseModel):
+    chunk: PRChunk
+    user_id: str
+    registry: List[ModelEntry]
+    budget_remaining_sats: int
+    current_model_id: str
+    current_tier_index: int = 0
+    worker_output: Optional[str] = None
+    findings: List[Finding] = []
+    verifier_accepted: bool = False
+    router_decision: Optional[RouterDecision] = None
+    retry_count: int = 0
+    max_retries: int = 2
+    status: Literal["running", "done", "failed"] = "running"
+    transactions: List[Transaction] = []

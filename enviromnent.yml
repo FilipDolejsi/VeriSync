@@ -1,0 +1,36 @@
+name: verisync
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+    # web
+    - fastapi
+    - uvicorn[standard]
+    - jinja2
+    - python-multipart
+    # auth
+    - authlib
+    - itsdangerous
+    - httpx
+    # github
+    - PyGithub
+    # database
+    - aiosqlite
+    # ai / agents
+    - anthropic
+    - langgraph
+    # registry
+    - pyyaml
+    # payments
+    - moneydevkit
+    - l402
+    # rl router
+    - sentence-transformers
+    - scikit-learn
+    - joblib
+    # testing
+    - pytest
+    - pytest-asyncio
