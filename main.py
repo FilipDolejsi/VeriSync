@@ -28,11 +28,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="VeriSync", lifespan=lifespan)
 
-frontend_origin = os.environ.get("FRONTEND_ORIGIN", "http://localhost:3000")
+# frontend_origin = os.environ.get("https://veri-sync.lovable.app", "http://localhost:3000")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[frontend_origin],
+    allow_origins=[
+        "https://veri-sync.lovable.app",                                              # published
+        "https://id-preview--68091988-a492-4c0e-b25b-f2cab9f40249.lovable.app",      # preview
+        "https://68091988-a492-4c0e-b25b-f2cab9f40249.lovable.app",                  # project URL
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
