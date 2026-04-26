@@ -50,7 +50,7 @@ async def _run_review(
     from pipeline.graph import run_pr_review
     from pipeline.chunker import parse_unified_diff
     import models as _models
-    from dashboard.events import publish
+    from dashboard.events import broker
     from gh.client import post_review_comment
 
     pr_url = diff.get("url", "")
@@ -116,8 +116,7 @@ async def _run_review(
             await db.commit()
 
     # 5. SSE: review started
-    await publish(user_id, {
-        "type": "review_started",
+    await broker.publish(user_id, "review_started", {
         "pr_id": pr_id,
         "pr_url": pr_url,
         "chunk_count": len(model_chunks),
@@ -170,8 +169,7 @@ async def _run_review(
             await db.commit()
 
         # 9. SSE: review done
-        await publish(user_id, {
-            "type": "review_done",
+        await broker.publish(user_id, "review_done", {
             "pr_id": pr_id,
             "pr_url": pr_url,
             "total_cost_sats": report.total_cost_sats,
@@ -190,7 +188,7 @@ async def _run_review(
                 "UPDATE pull_requests SET status = 'failed' WHERE id = ?", (pr_id,)
             )
             await db.commit()
-        await publish(user_id, {"type": "review_failed", "pr_id": pr_id, "error": str(e)})
+        await broker.publish(user_id, "review_failed", {"pr_id": pr_id, "error": str(e)})
 
     finally:
         _active_jobs.pop(pr_id, None)

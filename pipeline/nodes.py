@@ -96,7 +96,8 @@ def classifier_node(state: ChunkReviewState) -> ChunkReviewState:
         )
 
         # Parse response - expect single word tag
-        tag = response.choices[0].message.content.strip().lower().split()[0]
+        parts = response.choices[0].message.content.strip().lower().split()
+        tag = parts[0] if parts else "logic"
 
         # Validate tag (basic validation)
         valid_tags = {
@@ -275,20 +276,26 @@ def reviewer_node(
             except (json.JSONDecodeError, TypeError):
                 findings_data = []
 
+        _TAG_TO_CATEGORY = {"tests": "test-coverage"}
+        _VALID_CATEGORIES = {"security", "logic", "style", "performance", "test-coverage"}
+
         # Store findings in state (mapped to models.Finding)
         state.findings = []
         for f in findings_data:
             sev = f.get("severity", "info").lower()
             if sev not in ["critical", "warning", "info"]:
                 sev = "warning" if sev in ["major", "high"] else "info"
-            
+
+            raw_cat = _TAG_TO_CATEGORY.get(state.classifier_tag, state.classifier_tag)
+            cat = raw_cat if raw_cat in _VALID_CATEGORIES else "logic"
+
             state.findings.append(
                 Finding(
                     id=str(uuid.uuid4()),
                     chunk_id=state.chunk.id,
                     model_id=state.current_model_id,
                     severity=sev,
-                    category=state.classifier_tag if state.classifier_tag in ["security", "logic", "style", "performance", "test-coverage"] else "logic",
+                    category=cat,
                     line_number=f.get("line_number"),
                     description=f.get("issue", ""),
                     suggestion=f.get("suggestion", ""),

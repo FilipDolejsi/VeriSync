@@ -24,7 +24,7 @@ import logging
 from collections import defaultdict
 from typing import Any, AsyncIterator
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from auth.github_oauth import get_current_user  # type: ignore
@@ -93,8 +93,10 @@ async def _stream(request: Request, user_id: str) -> AsyncIterator[str]:
 
 @router.get("/events/stream")
 async def event_stream(request: Request, user=Depends(get_current_user)):
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     return StreamingResponse(
-        _stream(request, user.id),
+        _stream(request, user["id"]),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache, no-transform",

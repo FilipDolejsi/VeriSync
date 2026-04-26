@@ -8,7 +8,7 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 
 async def dispatch(task: str, model_entry: ModelEntry) -> str:
-    if model_entry.provider == "qrok-api":
+    if model_entry.provider == "groq-api":
         return _call_groq(task, model_entry.name)
     elif model_entry.provider == "gemini":
         return _call_gemini(task, model_entry.name)

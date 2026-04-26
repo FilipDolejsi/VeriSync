@@ -48,7 +48,7 @@ async def login(request: Request, redirect: str = Query(default="")):
 async def callback(request: Request):
     code = request.query_params.get("code")
     if not code:
-        return RedirectResponse(url=f"{FRONTEND_URL}?error=missing_code")
+        return RedirectResponse(url="/?error=missing_code")
 
     async with httpx.AsyncClient() as client:
         token_resp = await client.post(

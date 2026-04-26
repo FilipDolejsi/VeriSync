@@ -429,10 +429,10 @@ def start_retrain_loop(registry: List[ModelEntry], event_loop=None) -> None:
                             "repos_tracked":       result.get("repos", 0),
                         }
                         try:
-                            from dashboard.events import _queues, publish
-                            for uid in list(_queues.keys()):
+                            from dashboard.events import broker
+                            for uid in list(broker._subs.keys()):
                                 asyncio.run_coroutine_threadsafe(
-                                    publish(uid, payload), event_loop
+                                    broker.publish(uid, "router_retrained", payload), event_loop
                                 )
                         except Exception as pub_err:
                             logger.warning("SSE broadcast failed: %s", pub_err)
