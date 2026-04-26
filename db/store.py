@@ -25,6 +25,7 @@ async def init_db():
                 avatar_url TEXT,
                 wallet_id TEXT,
                 sat_balance INTEGER DEFAULT 0,
+                github_token TEXT,
                 created_at TEXT,
                 last_login TEXT
             );
@@ -107,12 +108,13 @@ async def init_db():
 
 async def upsert_user(db: aiosqlite.Connection, user: dict):
     await db.execute("""
-        INSERT INTO users (id, github_id, username, avatar_url, wallet_id, sat_balance, created_at, last_login)
-        VALUES (:id, :github_id, :username, :avatar_url, :wallet_id, :sat_balance, :created_at, :last_login)
+        INSERT INTO users (id, github_id, username, avatar_url, wallet_id, sat_balance, github_token, created_at, last_login)
+        VALUES (:id, :github_id, :username, :avatar_url, :wallet_id, :sat_balance, :github_token, :created_at, :last_login)
         ON CONFLICT(github_id) DO UPDATE SET
             username=excluded.username,
             avatar_url=excluded.avatar_url,
             wallet_id=excluded.wallet_id,
+            github_token=excluded.github_token,
             last_login=excluded.last_login
     """, user)
     await db.commit()
@@ -128,6 +130,12 @@ async def get_user_by_id(db: aiosqlite.Connection, user_id: str) -> dict | None:
     async with db.execute("SELECT * FROM users WHERE id = ?", (user_id,)) as cur:
         row = await cur.fetchone()
         return dict(row) if row else None
+
+
+async def get_github_token(db: aiosqlite.Connection, user_id: str) -> str | None:
+    async with db.execute("SELECT github_token FROM users WHERE id = ?", (user_id,)) as cur:
+        row = await cur.fetchone()
+        return row["github_token"] if row else None
 
 
 async def update_sat_balance(db: aiosqlite.Connection, user_id: str, delta: int):
