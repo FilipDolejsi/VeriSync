@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pipeline — VeriSync</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#050508;--card:#111219;--border:#1c1e2e;--purple:#7c3aed;--cyan:#22d3ee;--text:#f0f1f8;--muted:#6b7280;--dim:#374151}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh}
+  a{text-decoration:none;color:inherit}
+  ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#1d1f2e;border-radius:4px}
+
+  .nav{background:rgba(5,5,8,.85);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.05);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+  .logo{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;margin-right:16px}
+  .logo-icon{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--purple),var(--cyan));display:flex;align-items:center;justify-content:center;font-size:13px}
+  .nav-link{font-size:13px;color:var(--muted);padding:6px 12px;border-radius:7px;transition:.12s}
+  .nav-link:hover{color:var(--text);background:rgba(255,255,255,.05)}
+  .nav-link.active{color:var(--cyan)}
+  .nav-left,.nav-right{display:flex;align-items:center;gap:8px}
+  .balance-pill{display:flex;align-items:center;gap:7px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.15);border-radius:20px;padding:5px 12px}
+  .balance-pill span{font-family:'JetBrains Mono';font-size:13px;color:#fbbf24}
+  .balance-pill small{font-size:11px;color:var(--dim)}
+  select{background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--muted);font-size:12px;border-radius:8px;padding:5px 10px;cursor:pointer;font-family:'Inter'}
+  .avatar{width:26px;height:26px;border-radius:50%;border:2px solid rgba(124,58,237,.4)}
+  .username,.logout{font-size:13px;color:var(--muted)}
+  .logout{font-size:11px;color:var(--dim)}
+
+  main{max-width:1300px;margin:0 auto;padding:28px 24px}
+  .page-title{font-size:22px;font-weight:700;letter-spacing:-.5px;margin-bottom:4px}
+  .page-sub{color:var(--muted);font-size:14px;margin-bottom:24px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px}
+  .card-title{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:16px}
+
+  /* Pipeline SVG */
+  .pipeline-wrap{overflow-x:auto;padding-bottom:8px}
+
+  /* Node glow on active */
+  .pnode{cursor:default}
+  .pnode .box{transition:all .25s}
+  .pnode.active .box{filter:drop-shadow(0 0 10px rgba(34,211,238,.6))}
+  .pnode.active .box-rect{stroke:var(--cyan)!important;stroke-width:2!important}
+  .pnode.active .box-title{fill:var(--cyan)!important}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+  .log{height:230px;overflow-y:auto;font-family:'JetBrains Mono';font-size:12px;line-height:2;background:#06060b;border-radius:10px;padding:12px 14px;border:1px solid rgba(255,255,255,.04)}
+  .ep-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-left">
+    <a href="/" class="logo"><div class="logo-icon">⚡</div>VeriSync</a>
+    <a href="/dashboard" class="nav-link">Dashboard</a>
+    <a href="/graph"     class="nav-link active">Pipeline</a>
+    <a href="/docs"      class="nav-link">Docs</a>
+  </div>
+  <div class="nav-right">
+    <div class="balance-pill">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      <span id="satBalance">—</span><small>sats</small>
+    </div>
+    <select id="repoSel"><option value="">Watch a repo…</option></select>
+    <img id="avatar" class="avatar" src="" alt="">
+    <span id="username" class="username"></span>
+    <a href="/auth/logout" class="logout">logout</a>
+  </div>
+</nav>
+
+<main>
+  <div class="page-title">Review Pipeline</div>
+  <p class="page-sub">Live view of the agent network. Nodes light up as reviews run in real time.</p>
+
+  <!-- SVG Diagram -->
+  <div class="card pipeline-wrap">
+    <svg viewBox="0 0 940 240" style="width:100%;min-width:720px;display:block;font-family:'Inter',sans-serif">
+      <defs>
+        <marker id="arr" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+          <path d="M0,0.5 L0,6.5 L7,3.5z" fill="#2d3748"/>
+        </marker>
+        <marker id="arr-on" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+          <path d="M0,0.5 L0,6.5 L7,3.5z" fill="#22d3ee"/>
+        </marker>
+        <filter id="glow-cyan">
+          <feGaussianBlur stdDeviation="4" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+
+      <!-- Static arrows -->
+      <g stroke="#2d3748" stroke-width="1.5" fill="none">
+        <line x1="56" y1="120" x2="116" y2="120" marker-end="url(#arr)"/>
+        <line x1="226" y1="120" x2="286" y2="120" marker-end="url(#arr)"/>
+        <line x1="396" y1="120" x2="456" y2="120" marker-end="url(#arr)"/>
+        <line x1="566" y1="120" x2="626" y2="120" marker-end="url(#arr)"/>
+        <path d="M710 96 Q755 58 790 58" marker-end="url(#arr)"/>
+        <path d="M710 144 Q755 182 790 182" marker-end="url(#arr)"/>
+        <path d="M660 162 Q660 210 506 210 Q330 210 330 152" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+      </g>
+      <text x="506" y="225" text-anchor="middle" fill="#374151" font-size="9" font-family="JetBrains Mono,monospace">escalate → retry with next tier</text>
+
+      <!-- Active edge overlays -->
+      <line id="e-cr" x1="226" y1="120" x2="286" y2="120" stroke="#22d3ee" stroke-width="2" marker-end="url(#arr-on)" opacity="0"/>
+      <line id="e-rr" x1="396" y1="120" x2="456" y2="120" stroke="#22d3ee" stroke-width="2" marker-end="url(#arr-on)" opacity="0"/>
+      <line id="e-rv" x1="566" y1="120" x2="626" y2="120" stroke="#22d3ee" stroke-width="2" marker-end="url(#arr-on)" opacity="0"/>
+
+      <!-- Start -->
+      <circle cx="42" cy="120" r="14" fill="#0c0d14" stroke="#2d3748" stroke-width="1.5"/>
+      <text x="42" y="124" text-anchor="middle" fill="#4b5563" font-size="8" font-family="JetBrains Mono,monospace">IN</text>
+
+      <!-- Classifier -->
+      <g id="n-cls" class="pnode">
+        <g class="box">
+          <rect class="box-rect" x="118" y="84" width="106" height="72" rx="12" fill="#0c0d14" stroke="#1c1e2e" stroke-width="1.5"/>
+          <text class="box-title" x="171" y="108" text-anchor="middle" fill="#e2e4ed" font-size="12" font-weight="600">Classifier</text>
+          <text x="171" y="126" text-anchor="middle" fill="#4b5563" font-size="10" font-family="JetBrains Mono,monospace">llama3:8b</text>
+          <text x="171" y="142" text-anchor="middle" fill="#2d3748" font-size="9">tags chunk type</text>
+        </g>
+      </g>
+
+      <!-- Router -->
+      <g id="n-rtr" class="pnode">
+        <g class="box">
+          <rect class="box-rect" x="288" y="84" width="106" height="72" rx="12" fill="#0c0d14" stroke="#1c1e2e" stroke-width="1.5"/>
+          <text class="box-title" x="341" y="108" text-anchor="middle" fill="#e2e4ed" font-size="12" font-weight="600">Router</text>
+          <text x="341" y="126" text-anchor="middle" fill="#4b5563" font-size="10" font-family="JetBrains Mono,monospace">RL model</text>
+          <text x="341" y="142" text-anchor="middle" fill="#2d3748" font-size="9">picks tier</text>
+        </g>
+      </g>
+
+      <!-- Reviewer -->
+      <g id="n-rev" class="pnode">
+        <g class="box">
+          <rect class="box-rect" x="458" y="84" width="106" height="72" rx="12" fill="#0c0d14" stroke="#1c1e2e" stroke-width="1.5"/>
+          <text class="box-title" x="511" y="108" text-anchor="middle" fill="#e2e4ed" font-size="12" font-weight="600">Reviewer</text>
+          <text x="511" y="126" text-anchor="middle" fill="#4b5563" font-size="10" font-family="JetBrains Mono,monospace">tier 0–5</text>
+          <text x="511" y="142" text-anchor="middle" fill="#2d3748" font-size="9">finds issues</text>
+        </g>
+      </g>
+
+      <!-- Verifier -->
+      <g id="n-ver" class="pnode">
+        <g class="box">
+          <rect class="box-rect" x="628" y="84" width="106" height="72" rx="12" fill="#0c0d14" stroke="#1c1e2e" stroke-width="1.5"/>
+          <text class="box-title" x="681" y="108" text-anchor="middle" fill="#e2e4ed" font-size="12" font-weight="600">Verifier</text>
+          <text x="681" y="126" text-anchor="middle" fill="#4b5563" font-size="10" font-family="JetBrains Mono,monospace">gemini</text>
+          <text x="681" y="142" text-anchor="middle" fill="#2d3748" font-size="9">validates</text>
+        </g>
+      </g>
+
+      <!-- Done -->
+      <g id="n-done">
+        <rect x="792" y="32" width="76" height="52" rx="10" fill="rgba(5,46,22,.8)" stroke="rgba(16,185,129,.3)" stroke-width="1.5"/>
+        <text x="830" y="55" text-anchor="middle" fill="#34d399" font-size="12" font-weight="600">Done</text>
+        <text x="830" y="72" text-anchor="middle" fill="rgba(16,185,129,.4)" font-size="9">accepted</text>
+      </g>
+
+      <!-- Failed -->
+      <g id="n-fail">
+        <rect x="792" y="156" width="76" height="52" rx="10" fill="rgba(69,10,10,.8)" stroke="rgba(239,68,68,.25)" stroke-width="1.5"/>
+        <text x="830" y="179" text-anchor="middle" fill="#f87171" font-size="12" font-weight="600">Failed</text>
+        <text x="830" y="196" text-anchor="middle" fill="rgba(239,68,68,.35)" font-size="9">no budget</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="grid2">
+    <!-- Episodes -->
+    <div class="card">
+      <div class="card-title">Recent reviews</div>
+      <div id="episodes"><span style="color:var(--dim);font-size:13px">Loading…</span></div>
+    </div>
+
+    <!-- Node log -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <span class="card-title" style="margin:0">Node activity</span>
+        <span id="liveLabel" style="font-size:12px;color:var(--dim)">idle</span>
+      </div>
+      <div id="nodeLog" class="log"><span style="color:#1f2937">// watching for events…</span></div>
+    </div>
+  </div>
+</main>
+
+<script src="/static/nav.js"></script>
+<script>
+const NM = {chunk_started:'n-cls',model_selected:'n-rtr',sat_spent:'n-rev',finding_found:'n-rev',chunk_done:'n-ver'};
+const EM = {model_selected:'e-cr',sat_spent:'e-rr',finding_found:'e-rv'};
+let an=null,ae=null;
+
+function activateNode(id){
+  if(an) document.getElementById(an)?.classList.remove('active');
+  if(id) document.getElementById(id)?.classList.add('active');
+  an=id;
+}
+function activateEdge(id){
+  if(ae){const el=document.getElementById(ae);if(el)el.setAttribute('opacity','0');}
+  if(id){const el=document.getElementById(id);if(el)el.setAttribute('opacity','1');}
+  ae=id;
+}
+
+fetch('/api/history').then(r=>r.json()).then(prs=>{
+  const el=document.getElementById('episodes');
+  if(!prs.length){el.innerHTML='<span style="color:var(--dim);font-size:13px">No reviews yet.</span>';return;}
+  el.innerHTML=prs.slice(0,8).map(pr=>`
+    <div class="ep-row">
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:65%;color:#9ca3af;font-size:13px">${pr.pr_title||pr.id}</span>
+      <span style="font-size:12px;font-weight:500;color:${pr.critical_count>0?'#f87171':'#34d399'};flex-shrink:0;margin-left:12px">
+        ${pr.critical_count>0?`✗ ${pr.critical_count} crit`:'✓ clean'}
+      </span>
+    </div>`).join('');
+}).catch(()=>{});
+
+const nodeLog=document.getElementById('nodeLog');
+const liveLabel=document.getElementById('liveLabel');
+let logFirst=true;
+const LC={chunk_started:'#4b5563',model_selected:'#818cf8',sat_spent:'#fbbf24',finding_found:'#f87171',chunk_done:'#34d399',review_complete:'#22d3ee'};
+
+window.addEventListener('vs',e=>{
+  const ev=e.detail;
+  liveLabel.innerHTML='<span style="color:#22d3ee">● live</span>';
+  activateNode(NM[ev.type]||null);
+  activateEdge(EM[ev.type]||null);
+  if(logFirst){nodeLog.innerHTML='';logFirst=false;}
+  const line=document.createElement('div');
+  line.style.color=LC[ev.type]||'#4b5563';
+  switch(ev.type){
+    case 'chunk_started':   line.textContent=`[classifier]  ${ev.file} → ${ev.tag||'?'}`;break;
+    case 'model_selected':  line.textContent=`[router]  → ${ev.model_id}  (${ev.cost_sats} sats)`;break;
+    case 'sat_spent':       line.textContent=`[reviewer]  ⚡ −${ev.amount} sats`;break;
+    case 'finding_found':   line.textContent=`[reviewer]  ⚠ ${ev.severity}: ${(ev.description||'').slice(0,55)}`;break;
+    case 'chunk_done':      line.textContent=`[verifier]  ${ev.finding_count} finding(s) accepted`;activateNode(null);activateEdge(null);break;
+    case 'review_complete': line.textContent=`[done]  ${ev.total_cost} sats  🔴${ev.critical} ⚠${ev.warning}`;activateNode(null);activateEdge(null);break;
+    default:                line.textContent=JSON.stringify(ev);
+  }
+  nodeLog.appendChild(line);
+  nodeLog.scrollTop=nodeLog.scrollHeight;
+});
+
+initPage();
+</script>
+</body>
+</html>

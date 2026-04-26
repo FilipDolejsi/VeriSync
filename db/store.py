@@ -178,6 +178,91 @@ async def deactivate_watched_repo(db: aiosqlite.Connection, user_id: str, repo_f
     await db.commit()
 
 
+async def list_watched_repos(db: aiosqlite.Connection, user_id: str) -> list[dict]:
+    async with db.execute(
+        """
+        SELECT repo_full_name, webhook_id, active
+        FROM watched_repos
+        WHERE user_id = ? AND active = 1
+        ORDER BY repo_full_name ASC
+        """,
+        (user_id,),
+    ) as cur:
+        return [dict(row) for row in await cur.fetchall()]
+
+
+# ── Dashboard queries ─────────────────────────────────────────────────────────
+
+async def get_pr_history(db: aiosqlite.Connection, user_id: str, limit: int = 20, offset: int = 0) -> list[dict]:
+    async with db.execute("""
+        SELECT pr.*, COUNT(f.id) as finding_count,
+               SUM(CASE WHEN f.severity='critical' THEN 1 ELSE 0 END) as critical_count,
+               SUM(CASE WHEN f.severity='warning'  THEN 1 ELSE 0 END) as warning_count,
+               SUM(CASE WHEN f.severity='info'     THEN 1 ELSE 0 END) as info_count
+        FROM pull_requests pr
+        LEFT JOIN chunks c ON c.pr_id = pr.id
+        LEFT JOIN findings f ON f.chunk_id = c.id
+        WHERE pr.user_id = ?
+        GROUP BY pr.id
+        ORDER BY pr.started_at DESC
+        LIMIT ? OFFSET ?
+    """, (user_id, limit, offset)) as cur:
+        return [dict(r) for r in await cur.fetchall()]
+
+
+async def get_spend_analytics(db: aiosqlite.Connection, user_id: str) -> dict:
+    async with db.execute("""
+        SELECT COALESCE(SUM(pr.total_cost_sats), 0) as total_sats,
+               COUNT(DISTINCT pr.id) as total_prs
+        FROM pull_requests pr WHERE pr.user_id = ?
+    """, (user_id,)) as cur:
+        totals = dict(await cur.fetchone())
+
+    async with db.execute("""
+        SELECT e.model_id,
+               COUNT(*) as calls,
+               COALESCE(SUM(e.cost_sats), 0) as cost_sats,
+               COALESCE(AVG(e.finding_count), 0) as avg_findings,
+               COALESCE(AVG(e.verifier_pass), 0) as pass_rate
+        FROM episodes e
+        JOIN chunks c ON c.id = e.chunk_id
+        JOIN pull_requests pr ON pr.id = c.pr_id
+        WHERE pr.user_id = ?
+        GROUP BY e.model_id
+        ORDER BY cost_sats DESC
+    """, (user_id,)) as cur:
+        totals["model_breakdown"] = [dict(r) for r in await cur.fetchall()]
+
+    return totals
+
+
+async def get_finding_analytics(db: aiosqlite.Connection, user_id: str) -> dict:
+    async with db.execute("""
+        SELECT f.severity, f.category, COUNT(*) as count
+        FROM findings f
+        JOIN chunks c ON c.id = f.chunk_id
+        JOIN pull_requests pr ON pr.id = c.pr_id
+        WHERE pr.user_id = ?
+        GROUP BY f.severity, f.category
+        ORDER BY count DESC
+    """, (user_id,)) as cur:
+        rows = [dict(r) for r in await cur.fetchall()]
+
+    async with db.execute("""
+        SELECT c.file_path, COUNT(f.id) as finding_count
+        FROM findings f
+        JOIN chunks c ON c.id = f.chunk_id
+        JOIN pull_requests pr ON pr.id = c.pr_id
+        WHERE pr.user_id = ?
+        GROUP BY c.file_path
+        ORDER BY finding_count DESC
+        LIMIT 10
+    """, (user_id,)) as cur:
+        hotspots = [dict(r) for r in await cur.fetchall()]
+
+    return {"by_type": rows, "hotspot_files": hotspots}
+
+
 # ── Synchronous DBStore for LangGraph Nodes ───────────────────────────────────
 
 import sqlite3

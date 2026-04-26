@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard — VeriSync</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#050508;--surface:#0c0d14;--card:#111219;--border:#1c1e2e;--purple:#7c3aed;--cyan:#22d3ee;--text:#f0f1f8;--muted:#6b7280;--dim:#374151}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh}
+  a{text-decoration:none;color:inherit}
+  ::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-thumb{background:#1d1f2e;border-radius:4px}
+
+  /* NAV */
+  .nav{background:rgba(5,5,8,.85);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.05);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+  .logo{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;margin-right:16px}
+  .logo-icon{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--purple),var(--cyan));display:flex;align-items:center;justify-content:center;font-size:13px}
+  .nav-link{font-size:13px;color:var(--muted);padding:6px 12px;border-radius:7px;transition:.12s}
+  .nav-link:hover{color:var(--text);background:rgba(255,255,255,.05)}
+  .nav-link.active{color:var(--cyan)}
+  .nav-left{display:flex;align-items:center;gap:2px}
+  .nav-right{display:flex;align-items:center;gap:16px}
+  .balance-pill{display:flex;align-items:center;gap:7px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.15);border-radius:20px;padding:5px 12px}
+  .balance-pill svg{color:#fbbf24}
+  .balance-pill span{font-family:'JetBrains Mono';font-size:13px;color:#fbbf24}
+  .balance-pill small{font-size:11px;color:var(--dim)}
+  select{background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--muted);font-size:12px;border-radius:8px;padding:5px 10px;cursor:pointer;font-family:'Inter';outline:none;transition:.12s}
+  select:hover{border-color:rgba(124,58,237,.4)}
+  .user-chip{display:flex;align-items:center;gap:8px}
+  .avatar{width:26px;height:26px;border-radius:50%;border:2px solid rgba(124,58,237,.4)}
+  .username{font-size:13px;color:var(--muted)}
+  .logout{font-size:11px;color:var(--dim);transition:.12s}.logout:hover{color:var(--muted)}
+
+  /* LAYOUT */
+  main{max-width:1400px;margin:0 auto;padding:24px}
+
+  /* STAT CARDS */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+  .stat{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 22px;position:relative;overflow:hidden;transition:.2s}
+  .stat:hover{border-color:rgba(255,255,255,.1);transform:translateY(-1px)}
+  .stat::before{content:'';position:absolute;inset:0;background:var(--glow,transparent);opacity:.05;pointer-events:none}
+  .stat-label{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+  .stat-value{font-size:26px;font-weight:700;font-family:'JetBrains Mono';letter-spacing:-1px}
+
+  /* GRID LAYOUTS */
+  .row2{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px}
+  .row2b{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+
+  /* CARDS */
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px}
+  .card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+  .card-title{font-size:12px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+
+  /* LIVE FEED */
+  .feed{height:270px;overflow-y:auto;font-family:'JetBrains Mono';font-size:12px;line-height:2;background:#06060b;border-radius:10px;padding:14px 16px;border:1px solid rgba(255,255,255,.04)}
+  .live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--dim);margin-right:4px;transition:.3s}
+  .live-dot.on{background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+
+  /* TABLE */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;font-weight:500;padding-bottom:12px;text-align:left}
+  tbody tr{border-top:1px solid rgba(255,255,255,.04);cursor:pointer;transition:.12s}
+  tbody tr:hover td{background:rgba(255,255,255,.025)}
+  td{padding:11px 0}
+  .badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:500}
+  .badge-crit{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.2)}
+  .badge-warn{background:rgba(245,158,11,.12);color:#fbbf24;border:1px solid rgba(245,158,11,.2)}
+  .badge-ok{background:rgba(52,211,153,.1);color:#34d399;border:1px solid rgba(52,211,153,.2)}
+
+  /* Hotspot bars */
+  .hotspot-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+  .hotspot-bar{width:100%;background:rgba(255,255,255,.05);border-radius:3px;height:3px;margin-top:4px}
+  .hotspot-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--purple),var(--cyan))}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-left">
+    <a href="/" class="logo"><div class="logo-icon">⚡</div>VeriSync</a>
+    <a href="/dashboard" class="nav-link active">Dashboard</a>
+    <a href="/graph"     class="nav-link">Pipeline</a>
+    <a href="/docs"      class="nav-link">Docs</a>
+  </div>
+  <div class="nav-right">
+    <div class="balance-pill">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      <span id="satBalance">—</span><small>sats</small>
+    </div>
+    <select id="repoSel"><option value="">Watch a repo…</option></select>
+    <div class="user-chip">
+      <img id="avatar" class="avatar" src="" alt="">
+      <span id="username" class="username"></span>
+      <a href="/auth/logout" class="logout">logout</a>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat" style="--glow:radial-gradient(circle at 10% 50%,#fbbf24,transparent)">
+      <div class="stat-label">Total spent</div>
+      <div class="stat-value" id="s-sats" style="color:#fbbf24">—</div>
+    </div>
+    <div class="stat" style="--glow:radial-gradient(circle at 10% 50%,#22d3ee,transparent)">
+      <div class="stat-label">PRs reviewed</div>
+      <div class="stat-value" id="s-prs" style="color:#22d3ee">—</div>
+    </div>
+    <div class="stat" style="--glow:radial-gradient(circle at 10% 50%,#f87171,transparent)">
+      <div class="stat-label">Findings</div>
+      <div class="stat-value" id="s-finds" style="color:#f87171">—</div>
+    </div>
+    <div class="stat" style="--glow:radial-gradient(circle at 10% 50%,#34d399,transparent)">
+      <div class="stat-label">Verifier pass</div>
+      <div class="stat-value" id="s-pass" style="color:#34d399">—</div>
+    </div>
+  </div>
+
+  <div class="row2">
+    <!-- Live feed -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Live review feed</span>
+        <span id="liveStatus" style="font-size:12px;color:var(--dim)">
+          <span class="live-dot" id="liveDot"></span>idle
+        </span>
+      </div>
+      <div id="feed" class="feed"><span style="color:#1f2937">// events appear here when a review runs…</span></div>
+    </div>
+
+    <!-- Model breakdown -->
+    <div class="card">
+      <div class="card-head"><span class="card-title">Cost by model</span></div>
+      <canvas id="pie" style="max-height:155px;margin-bottom:14px"></canvas>
+      <div id="modelTbl"></div>
+    </div>
+  </div>
+
+  <div class="row2b">
+    <!-- Findings chart -->
+    <div class="card">
+      <div class="card-head"><span class="card-title">Findings by category</span></div>
+      <canvas id="bar" style="max-height:165px"></canvas>
+    </div>
+
+    <!-- Hotspot files -->
+    <div class="card">
+      <div class="card-head"><span class="card-title">High-risk files</span></div>
+      <div id="hotspots"></div>
+    </div>
+  </div>
+
+  <!-- PR history -->
+  <div class="card">
+    <div class="card-head"><span class="card-title">PR history</span></div>
+    <table>
+      <thead><tr>
+        <th>Pull request</th><th>Repo</th>
+        <th style="text-align:right">Cost</th>
+        <th style="text-align:center">Severity</th>
+        <th style="text-align:right">Status</th>
+        <th style="text-align:right">Time</th>
+      </tr></thead>
+      <tbody id="prHistory"></tbody>
+    </table>
+    <div id="noHistory" style="display:none;text-align:center;padding:40px;color:var(--dim);font-size:13px">
+      No PRs reviewed yet — push to a watched repo to get started.
+    </div>
+  </div>
+</main>
+
+<script src="/static/nav.js"></script>
+<script>
+Chart.defaults.color = '#6b7280';
+Chart.defaults.borderColor = 'rgba(255,255,255,.06)';
+
+let pie, bar, feedPaused = false, feedFirst = true;
+
+async function loadAnalytics() {
+  const d = await fetch('/api/analytics').then(r => r.json()).catch(() => ({ spend:{}, findings:{} }));
+  const sp = d.spend || {}, fi = d.findings || {};
+
+  const sats = sp.total_sats || 0;
+  document.getElementById('s-sats').textContent  = sats.toLocaleString() + ' sats';
+  document.getElementById('s-prs').textContent   = sp.total_prs || 0;
+
+  const byType = fi.by_type || [];
+  document.getElementById('s-finds').textContent = byType.reduce((s,f)=>s+f.count,0);
+
+  const bk = sp.model_breakdown || [];
+  const tc = bk.reduce((s,m)=>s+m.calls,0);
+  const ps = bk.reduce((s,m)=>s+m.pass_rate*m.calls,0);
+  document.getElementById('s-pass').textContent = tc ? (ps/tc*100).toFixed(0)+'%' : '—';
+
+  // Pie
+  if(pie) pie.destroy();
+  const PC = ['#7c3aed','#22d3ee','#f472b6','#fbbf24','#34d399','#fb923c'];
+  pie = new Chart(document.getElementById('pie'), {
+    type:'doughnut',
+    data:{labels:bk.map(m=>m.model_id),datasets:[{data:bk.map(m=>m.cost_sats),backgroundColor:PC,borderColor:'#111219',borderWidth:3}]},
+    options:{cutout:'70%',plugins:{legend:{labels:{color:'#6b7280',font:{size:11},boxWidth:9,padding:12}}}}
+  });
+
+  document.getElementById('modelTbl').innerHTML = bk.slice(0,5).map((m,i)=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+      <span style="display:flex;align-items:center;gap:7px">
+        <span style="width:8px;height:8px;border-radius:50%;background:${PC[i]||'#6b7280'};flex-shrink:0"></span>
+        <span style="color:#d1d5db;font-size:12px">${m.model_id}</span>
+      </span>
+      <span style="font-family:'JetBrains Mono';font-size:12px;color:#fbbf24">${m.cost_sats} sats</span>
+    </div>`).join('') || '<span style="color:var(--dim);font-size:13px">No data yet</span>';
+
+  // Bar
+  if(bar) bar.destroy();
+  const SC = {critical:'rgba(239,68,68,.8)',warning:'rgba(245,158,11,.8)',info:'rgba(59,130,246,.8)'};
+  bar = new Chart(document.getElementById('bar'),{
+    type:'bar',
+    data:{labels:byType.map(f=>f.category),datasets:[{data:byType.map(f=>f.count),backgroundColor:byType.map(f=>SC[f.severity]||'rgba(107,114,128,.6)'),borderRadius:5,borderSkipped:false}]},
+    options:{plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10}}},y:{ticks:{font:{size:10}}}}}
+  });
+
+  // Hotspots
+  const spots = fi.hotspot_files || [];
+  const max = spots[0]?.finding_count || 1;
+  document.getElementById('hotspots').innerHTML = spots.length
+    ? spots.map(f=>`
+      <div class="hotspot-row">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-family:'JetBrains Mono';font-size:11px;color:#9ca3af;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.file_path}</span>
+            <span style="font-size:12px;font-weight:600;color:#f87171;margin-left:12px">${f.finding_count}</span>
+          </div>
+          <div class="hotspot-bar"><div class="hotspot-fill" style="width:${(f.finding_count/max*100).toFixed(0)}%"></div></div>
+        </div>
+      </div>`).join('')
+    : '<span style="color:var(--dim);font-size:13px">No findings yet</span>';
+}
+
+async function loadHistory() {
+  const rows = await fetch('/api/history').then(r=>r.json()).catch(()=>[]);
+  const tbody = document.getElementById('prHistory');
+  if(!rows.length){ document.getElementById('noHistory').style.display='block'; return; }
+  document.getElementById('noHistory').style.display='none';
+  tbody.innerHTML = rows.map(pr => {
+    const sev = pr.critical_count > 0
+      ? `<span class="badge badge-crit">🔴 ${pr.critical_count} critical</span>`
+      : pr.warning_count > 0
+        ? `<span class="badge badge-warn">⚠ ${pr.warning_count} warnings</span>`
+        : `<span class="badge badge-ok">✓ clean</span>`;
+    const sc = pr.status==='done'?'#34d399':pr.status==='failed'?'#f87171':'#fbbf24';
+    return `<tr onclick="location='/review/${pr.id}'">
+      <td style="padding-right:16px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${pr.pr_title||pr.id}</td>
+      <td style="color:var(--dim);font-size:12px">${pr.repo_full_name||''}</td>
+      <td style="text-align:right;font-family:'JetBrains Mono';font-size:12px;color:#fbbf24">${pr.total_cost_sats}</td>
+      <td style="text-align:center">${sev}</td>
+      <td style="text-align:right;font-size:12px;color:${sc};font-weight:500">${pr.status}</td>
+      <td style="text-align:right;font-size:11px;color:var(--dim)">${(pr.started_at||'').slice(0,16)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// Live feed
+const feed = document.getElementById('feed');
+const dot  = document.getElementById('liveDot');
+feed.addEventListener('mouseenter', ()=> feedPaused=true);
+feed.addEventListener('mouseleave', ()=> feedPaused=false);
+
+const EC = {
+  chunk_started:   '#4b5563',
+  model_selected:  '#818cf8',
+  sat_spent:       '#fbbf24',
+  finding_found:   '#f87171',
+  chunk_done:      '#34d399',
+  review_complete: '#22d3ee',
+};
+
+window.addEventListener('vs', e => {
+  const ev = e.detail;
+  dot.className = 'live-dot on';
+  document.getElementById('liveStatus').innerHTML = '<span class="live-dot on"></span><span style="color:#22d3ee">live</span>';
+  if(feedFirst){ feed.innerHTML=''; feedFirst=false; }
+
+  const line = document.createElement('div');
+  line.style.color = EC[ev.type] || '#6b7280';
+  switch(ev.type){
+    case 'chunk_started':   line.textContent = `▶  ${ev.file}  [${ev.tag}]`; break;
+    case 'model_selected':  line.textContent = `   → ${ev.model_id}   ${ev.cost_sats} sats   conf ${((ev.confidence||0)*100).toFixed(0)}%`; break;
+    case 'sat_spent':       line.textContent = `   ⚡ −${ev.amount} sats   bal: ${ev.new_balance}`; break;
+    case 'finding_found':   line.innerHTML   = `   <span style="opacity:.55">[${ev.severity}]</span> ${ev.description}`; break;
+    case 'chunk_done':      line.textContent = `✓  ${ev.finding_count} finding(s)   ${ev.cost_sats} sats`; break;
+    case 'review_complete': line.textContent = `━  done   ${ev.total_cost} sats   🔴 ${ev.critical} ⚠ ${ev.warning}`; loadAnalytics(); loadHistory(); break;
+    default:                line.textContent = JSON.stringify(ev);
+  }
+  feed.appendChild(line);
+  if(!feedPaused) feed.scrollTop = feed.scrollHeight;
+});
+
+initPage().then(u => { if(u){ loadAnalytics(); loadHistory(); } });
+</script>
+</body>
+</html>

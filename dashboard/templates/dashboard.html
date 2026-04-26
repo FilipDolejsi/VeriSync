@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — VeriSync{% endblock %}
+{% block content %}
+
+<!-- Stat strip -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;">
+  <div class="card" style="padding:16px 20px;">
+    <div style="font-size:12px;color:#6b7280;margin-bottom:6px;">Total spent</div>
+    <div id="id-total-sats" style="font-size:22px;font-weight:600;color:#fbbf24;font-family:'JetBrains Mono';">— sats</div>
+  </div>
+  <div class="card" style="padding:16px 20px;">
+    <div style="font-size:12px;color:#6b7280;margin-bottom:6px;">PRs reviewed</div>
+    <div id="id-total-prs" style="font-size:22px;font-weight:600;color:#22d3ee;font-family:'JetBrains Mono';">—</div>
+  </div>
+  <div class="card" style="padding:16px 20px;">
+    <div style="font-size:12px;color:#6b7280;margin-bottom:6px;">Findings</div>
+    <div id="id-total-finds" style="font-size:22px;font-weight:600;color:#f87171;font-family:'JetBrains Mono';">—</div>
+  </div>
+  <div class="card" style="padding:16px 20px;">
+    <div style="font-size:12px;color:#6b7280;margin-bottom:6px;">Verifier pass</div>
+    <div id="id-pass-rate" style="font-size:22px;font-weight:600;color:#34d399;font-family:'JetBrains Mono';">—</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px;">
+
+  <!-- Live feed -->
+  <div class="card" style="padding:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-size:13px;font-weight:500;">Live review feed</div>
+      <div id="liveStatus" style="display:flex;align-items:center;gap:6px;font-size:12px;color:#4b5563;">
+        <span id="liveDot" style="width:7px;height:7px;border-radius:50%;background:#2d3748;display:inline-block;"></span>
+        idle
+      </div>
+    </div>
+    <div id="liveFeed"
+         style="height:260px;overflow-y:auto;font-family:'JetBrains Mono';font-size:12px;line-height:1.8;background:#09090f;border-radius:8px;padding:12px;">
+      <span style="color:#374151;">// waiting for a review event…</span>
+    </div>
+  </div>
+
+  <!-- Model breakdown -->
+  <div class="card" style="padding:20px;">
+    <div style="font-size:13px;font-weight:500;margin-bottom:14px;">Cost by model</div>
+    <canvas id="modelPie" style="max-height:160px;margin-bottom:14px;"></canvas>
+    <div id="modelTable" style="font-size:12px;color:#9ca3af;"></div>
+  </div>
+
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+
+  <!-- Finding breakdown -->
+  <div class="card" style="padding:20px;">
+    <div style="font-size:13px;font-weight:500;margin-bottom:14px;">Findings by type</div>
+    <canvas id="findingBar" style="max-height:160px;"></canvas>
+  </div>
+
+  <!-- High-risk files -->
+  <div class="card" style="padding:20px;">
+    <div style="font-size:13px;font-weight:500;margin-bottom:14px;">High-risk files</div>
+    <div id="hotspotList" style="font-size:13px;"></div>
+  </div>
+
+</div>
+
+<!-- PR history -->
+<div class="card" style="padding:20px;">
+  <div style="font-size:13px;font-weight:500;margin-bottom:14px;">PR history</div>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <thead>
+      <tr style="color:#4b5563;font-size:11px;text-transform:uppercase;letter-spacing:.05em;">
+        <th style="text-align:left;padding-bottom:10px;font-weight:500;">Pull request</th>
+        <th style="text-align:left;padding-bottom:10px;font-weight:500;">Repo</th>
+        <th style="text-align:right;padding-bottom:10px;font-weight:500;">Cost</th>
+        <th style="text-align:center;padding-bottom:10px;font-weight:500;">Findings</th>
+        <th style="text-align:right;padding-bottom:10px;font-weight:500;">Status</th>
+        <th style="text-align:right;padding-bottom:10px;font-weight:500;">Time</th>
+      </tr>
+    </thead>
+    <tbody id="prHistory"></tbody>
+  </table>
+  <div id="noHistory" style="text-align:center;padding:32px 0;color:#374151;font-size:13px;display:none;">
+    No PRs reviewed yet. Push to a watched repo to get started.
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const SAT_USD = 0.00000063;
+let modelPie, findingBar, _feedPaused = false;
+
+async function loadAnalytics() {
+  const { spend, findings } = await fetch("/api/analytics").then(r=>r.json()).catch(()=>({spend:{},findings:{}}));
+
+  // Stats
+  const sats = spend.total_sats || 0;
+  document.getElementById("id-total-sats").textContent = sats.toLocaleString() + " sats";
+  document.getElementById("id-total-prs").textContent  = spend.total_prs || 0;
+
+  const allFinds = (findings.by_type||[]).reduce((s,f)=>s+f.count,0);
+  document.getElementById("id-total-finds").textContent = allFinds;
+
+  const breakdown = spend.model_breakdown || [];
+  const totalCalls = breakdown.reduce((s,m)=>s+m.calls,0);
+  const passSum = breakdown.reduce((s,m)=>s+m.pass_rate*m.calls,0);
+  document.getElementById("id-pass-rate").textContent = totalCalls ? (passSum/totalCalls*100).toFixed(0)+"%" : "—";
+
+  // Model pie
+  if(modelPie) modelPie.destroy();
+  const PIE_COLORS = ["#22d3ee","#818cf8","#f472b6","#fbbf24","#34d399","#fb923c"];
+  modelPie = new Chart(document.getElementById("modelPie"), {
+    type:"doughnut",
+    data:{
+      labels: breakdown.map(m=>m.model_id),
+      datasets:[{data:breakdown.map(m=>m.cost_sats), backgroundColor:PIE_COLORS,
+                 borderColor:"#12141c", borderWidth:2}]
+    },
+    options:{
+      cutout:"68%",
+      plugins:{legend:{labels:{color:"#9ca3af",font:{size:11},boxWidth:10}}}
+    }
+  });
+
+  // Model table
+  document.getElementById("modelTable").innerHTML = breakdown.slice(0,4).map(m=>`
+    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1e2130;">
+      <span style="color:#d1d5db;">${m.model_id}</span>
+      <span style="color:#fbbf24;font-family:'JetBrains Mono';">${m.cost_sats} sats</span>
+    </div>`).join("") || '<div style="color:#374151;">No data yet.</div>';
+
+  // Finding bar
+  const byType = findings.by_type || [];
+  const SEV_COLOR = {"critical":"#ef4444","warning":"#f59e0b","info":"#3b82f6"};
+  if(findingBar) findingBar.destroy();
+  findingBar = new Chart(document.getElementById("findingBar"),{
+    type:"bar",
+    data:{
+      labels: byType.map(f=>f.category),
+      datasets:[{data:byType.map(f=>f.count),
+                 backgroundColor:byType.map(f=>SEV_COLOR[f.severity]||"#6b7280"),
+                 borderRadius:4}]
+    },
+    options:{
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:"#6b7280",font:{size:10}},grid:{color:"#1a1d2a"}},
+        y:{ticks:{color:"#6b7280",font:{size:10}},grid:{color:"#1a1d2a"}}
+      }
+    }
+  });
+
+  // Hotspots
+  const spots = findings.hotspot_files || [];
+  document.getElementById("hotspotList").innerHTML = spots.length
+    ? spots.map(f=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #1e2130;">
+          <span style="color:#d1d5db;font-family:'JetBrains Mono';font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:78%;">${f.file_path}</span>
+          <span style="color:#f87171;font-size:12px;font-weight:600;">${f.finding_count}</span>
+        </div>`).join("")
+    : '<div style="color:#374151;font-size:13px;">No findings recorded yet.</div>';
+}
+
+async function loadHistory() {
+  const rows = await fetch("/api/history").then(r=>r.json()).catch(()=>[]);
+  const tbody = document.getElementById("prHistory");
+  const empty = document.getElementById("noHistory");
+  if(!rows.length){ empty.style.display="block"; return; }
+  empty.style.display="none";
+  tbody.innerHTML = rows.map(pr=>{
+    const sev = pr.critical_count>0 ? `<span class="badge badge-critical">${pr.critical_count} critical</span>`
+              : pr.warning_count>0  ? `<span class="badge badge-warning">${pr.warning_count} warning</span>`
+                                     : `<span class="badge" style="background:#052e16;color:#6ee7b7;">clean</span>`;
+    const status_color = pr.status==="done"?"#34d399":pr.status==="failed"?"#f87171":"#fbbf24";
+    return `<tr style="border-top:1px solid #1e2130;cursor:pointer;" onclick="location='/review/${pr.id}'"
+                onmouseenter="this.style.background='#1a1d2a'" onmouseleave="this.style.background=''">
+      <td style="padding:10px 0;color:#e2e4ed;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${pr.pr_title||pr.pr_url||pr.id}</td>
+      <td style="padding:10px 12px;color:#6b7280;font-size:12px;">${pr.repo_full_name||""}</td>
+      <td style="padding:10px 0;text-align:right;font-family:'JetBrains Mono';color:#fbbf24;">${pr.total_cost_sats}</td>
+      <td style="padding:10px 0;text-align:center;">${sev}</td>
+      <td style="padding:10px 0;text-align:right;font-size:12px;color:${status_color};">${pr.status}</td>
+      <td style="padding:10px 0;text-align:right;font-size:12px;color:#4b5563;">${(pr.started_at||"").slice(0,16)}</td>
+    </tr>`;
+  }).join("");
+}
+
+// ── Live feed ─────────────────────────────────────────────────────────────────
+const feed  = document.getElementById("liveFeed");
+const dot   = document.getElementById("liveDot");
+const lstat = document.getElementById("liveStatus");
+let _firstEvent = true;
+
+feed.addEventListener("mouseenter",()=>_feedPaused=true);
+feed.addEventListener("mouseleave",()=>_feedPaused=false);
+
+const EV_STYLE = {
+  chunk_started:   {color:"#6b7280", prefix:"▶"},
+  model_selected:  {color:"#818cf8", prefix:"  →"},
+  sat_spent:       {color:"#fbbf24", prefix:"  ⚡"},
+  finding_found:   {color:"#f87171", prefix:"  ⚠"},
+  chunk_done:      {color:"#34d399", prefix:"✓"},
+  review_complete: {color:"#22d3ee", prefix:"━"},
+};
+
+window.addEventListener("vs", e=>{
+  const ev = e.detail;
+  if(_firstEvent){ feed.innerHTML=""; _firstEvent=false; }
+
+  dot.style.background="#22d3ee";
+  lstat.innerHTML = `<span style="width:7px;height:7px;border-radius:50%;background:#22d3ee;display:inline-block;box-shadow:0 0 6px #22d3ee;"></span> live`;
+
+  const s = EV_STYLE[ev.type] || {color:"#9ca3af", prefix:"·"};
+  const line = document.createElement("div");
+  line.style.color = s.color;
+
+  switch(ev.type){
+    case "chunk_started":
+      line.textContent = `▶  ${ev.file}  [${ev.tag}]`; break;
+    case "model_selected":
+      line.textContent = `   → ${ev.model_id}   ${ev.cost_sats} sats   conf ${(ev.confidence*100||0).toFixed(0)}%`; break;
+    case "sat_spent":
+      line.textContent = `   ⚡ −${ev.amount} sats   balance: ${ev.new_balance}`; break;
+    case "finding_found":
+      line.innerHTML = `   <span style="opacity:.6">[${ev.severity}]</span> ${ev.description}`; break;
+    case "chunk_done":
+      line.textContent = `✓  ${ev.finding_count} finding(s)   ${ev.cost_sats} sats`; break;
+    case "review_complete":
+      line.textContent = `━  Review complete   total: ${ev.total_cost} sats   🔴 ${ev.critical}   ⚠ ${ev.warning}`;
+      loadAnalytics(); loadHistory();
+      break;
+    default:
+      line.textContent = `·  ${JSON.stringify(ev)}`;
+  }
+
+  feed.appendChild(line);
+  if(!_feedPaused) feed.scrollTop = feed.scrollHeight;
+});
+
+loadAnalytics();
+loadHistory();
+</script>
+{% endblock %}

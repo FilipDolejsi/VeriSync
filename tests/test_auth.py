@@ -39,34 +39,34 @@ async def test_login_redirects_to_github(client):
 
 @pytest.mark.asyncio
 async def test_callback_stores_session_and_redirects_to_dashboard(client):
-    fake_profile = {
-        "id": 123456,
-        "login": "filiptest",
+    fake_token    = MagicMock()
+    fake_token.json.return_value = {"access_token": "ghp_fake_token_123"}
+    fake_token.raise_for_status = MagicMock()
+
+    fake_profile  = MagicMock()
+    fake_profile.json.return_value = {
+        "id": 123456, "login": "filiptest",
         "avatar_url": "https://avatars.githubusercontent.com/u/123456",
     }
+    fake_profile.raise_for_status = MagicMock()
 
-    mock_gh_response = MagicMock()
-    mock_gh_response.json.return_value = fake_profile
-    mock_gh_response.raise_for_status = MagicMock()
-
-    mock_http_client = AsyncMock()
-    mock_http_client.get.return_value = mock_gh_response
+    mock_http = AsyncMock()
+    mock_http.post.return_value = fake_token
+    mock_http.get.return_value  = fake_profile
 
     mock_db = AsyncMock()
 
     with (
-        patch("auth.github_oauth.oauth.github.authorize_access_token", new_callable=AsyncMock) as mock_token,
-        patch("httpx.AsyncClient") as mock_httpx,
+        patch("auth.github_oauth.httpx.AsyncClient") as mock_httpx,
         patch("auth.github_oauth.get_db") as mock_get_db,
     ):
-        mock_token.return_value = {"access_token": "ghp_fake_token_123"}
-        mock_httpx.return_value.__aenter__ = AsyncMock(return_value=mock_http_client)
-        mock_httpx.return_value.__aexit__ = AsyncMock(return_value=False)
+        mock_httpx.return_value.__aenter__ = AsyncMock(return_value=mock_http)
+        mock_httpx.return_value.__aexit__  = AsyncMock(return_value=False)
         mock_get_db.return_value.__aenter__ = AsyncMock(return_value=mock_db)
-        mock_get_db.return_value.__aexit__ = AsyncMock(return_value=False)
+        mock_get_db.return_value.__aexit__  = AsyncMock(return_value=False)
 
         response = await client.get(
-            "/auth/callback?code=fake_code&state=fake_state",
+            "/auth/callback?code=fake_code",
             follow_redirects=False,
         )
 

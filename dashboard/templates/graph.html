@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% block title %}Pipeline — VeriSync{% endblock %}
+{% block content %}
+
+<div style="margin-bottom:24px;">
+  <h1 style="font-size:20px;font-weight:600;margin-bottom:4px;">Review Pipeline</h1>
+  <p style="color:#6b7280;font-size:14px;">How every diff chunk moves through the agent network. Nodes light up live as reviews run.</p>
+</div>
+
+<!-- Pipeline diagram -->
+<div class="card" style="padding:32px;margin-bottom:16px;overflow-x:auto;">
+  <svg id="pipeline-svg" viewBox="0 0 860 220" style="width:100%;min-width:700px;display:block;">
+    <!-- Defs -->
+    <defs>
+      <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L8,3 z" fill="#2d3748"/>
+      </marker>
+      <marker id="arr-cyan" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L8,3 z" fill="#22d3ee"/>
+      </marker>
+      <filter id="glow">
+        <feGaussianBlur stdDeviation="3" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+
+    <!-- Edges (drawn first so nodes sit on top) -->
+    <!-- START → Classifier -->
+    <line x1="60" y1="110" x2="118" y2="110" stroke="#2d3748" stroke-width="1.5" marker-end="url(#arr)"/>
+    <!-- Classifier → Router -->
+    <line x1="222" y1="110" x2="278" y2="110" stroke="#2d3748" stroke-width="1.5" marker-end="url(#arr)"/>
+    <!-- Router → Reviewer -->
+    <line x1="382" y1="110" x2="438" y2="110" stroke="#2d3748" stroke-width="1.5" marker-end="url(#arr)"/>
+    <!-- Reviewer → Verifier -->
+    <line x1="542" y1="110" x2="598" y2="110" stroke="#2d3748" stroke-width="1.5" marker-end="url(#arr)"/>
+    <!-- Verifier → Done (top right) -->
+    <path d="M 702 90 Q 760 60 790 60" stroke="#2d3748" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+    <!-- Verifier → Failed (bottom right) -->
+    <path d="M 702 130 Q 760 160 790 160" stroke="#2d3748" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+    <!-- Escalate arc: Verifier → Escalate → Router -->
+    <path d="M 650 155 Q 650 195 490 195 Q 330 195 330 145"
+          stroke="#2d3748" stroke-width="1.5" fill="none" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+
+    <!-- Active edge overlay (animated, hidden by default) -->
+    <line id="edge-cls-rtr" x1="222" y1="110" x2="278" y2="110"
+          stroke="#22d3ee" stroke-width="2" marker-end="url(#arr-cyan)" opacity="0"/>
+    <line id="edge-rtr-rev" x1="382" y1="110" x2="438" y2="110"
+          stroke="#22d3ee" stroke-width="2" marker-end="url(#arr-cyan)" opacity="0"/>
+    <line id="edge-rev-ver" x1="542" y1="110" x2="598" y2="110"
+          stroke="#22d3ee" stroke-width="2" marker-end="url(#arr-cyan)" opacity="0"/>
+
+    <!-- START dot -->
+    <circle cx="44" cy="110" r="12" fill="#1a1d2a" stroke="#2d3748" stroke-width="1.5"/>
+    <text x="44" y="115" text-anchor="middle" fill="#6b7280" font-size="9" font-family="JetBrains Mono">IN</text>
+
+    <!-- Classifier -->
+    <g id="node-classifier" class="pipeline-node">
+      <rect x="120" y="78" width="100" height="64" rx="10" fill="#12141c" stroke="#1e2130" stroke-width="1.5"/>
+      <text x="170" y="104" text-anchor="middle" fill="#e2e4ed" font-size="12" font-weight="500" font-family="Inter">Classifier</text>
+      <text x="170" y="120" text-anchor="middle" fill="#6b7280" font-size="10" font-family="JetBrains Mono">llama3:8b</text>
+      <text x="170" y="134" text-anchor="middle" fill="#6b7280" font-size="9" font-family="Inter">tags chunk type</text>
+    </g>
+
+    <!-- Router -->
+    <g id="node-router" class="pipeline-node">
+      <rect x="280" y="78" width="100" height="64" rx="10" fill="#12141c" stroke="#1e2130" stroke-width="1.5"/>
+      <text x="330" y="104" text-anchor="middle" fill="#e2e4ed" font-size="12" font-weight="500" font-family="Inter">Router</text>
+      <text x="330" y="120" text-anchor="middle" fill="#6b7280" font-size="10" font-family="JetBrains Mono">RL model</text>
+      <text x="330" y="134" text-anchor="middle" fill="#6b7280" font-size="9" font-family="Inter">picks tier</text>
+    </g>
+
+    <!-- Reviewer -->
+    <g id="node-reviewer" class="pipeline-node">
+      <rect x="440" y="78" width="100" height="64" rx="10" fill="#12141c" stroke="#1e2130" stroke-width="1.5"/>
+      <text x="490" y="104" text-anchor="middle" fill="#e2e4ed" font-size="12" font-weight="500" font-family="Inter">Reviewer</text>
+      <text x="490" y="120" text-anchor="middle" fill="#6b7280" font-size="10" font-family="JetBrains Mono">tier 0–5</text>
+      <text x="490" y="134" text-anchor="middle" fill="#6b7280" font-size="9" font-family="Inter">finds issues</text>
+    </g>
+
+    <!-- Verifier -->
+    <g id="node-verifier" class="pipeline-node">
+      <rect x="600" y="78" width="100" height="64" rx="10" fill="#12141c" stroke="#1e2130" stroke-width="1.5"/>
+      <text x="650" y="104" text-anchor="middle" fill="#e2e4ed" font-size="12" font-weight="500" font-family="Inter">Verifier</text>
+      <text x="650" y="120" text-anchor="middle" fill="#6b7280" font-size="10" font-family="JetBrains Mono">gemini</text>
+      <text x="650" y="134" text-anchor="middle" fill="#6b7280" font-size="9" font-family="Inter">validates</text>
+    </g>
+
+    <!-- Done -->
+    <g id="node-done">
+      <rect x="792" y="36" width="60" height="48" rx="8" fill="#052e16" stroke="#065f46" stroke-width="1.5"/>
+      <text x="822" y="58" text-anchor="middle" fill="#34d399" font-size="11" font-weight="500" font-family="Inter">Done</text>
+      <text x="822" y="73" text-anchor="middle" fill="#065f46" font-size="9" font-family="Inter">accepted</text>
+    </g>
+
+    <!-- Failed -->
+    <g id="node-failed">
+      <rect x="792" y="136" width="60" height="48" rx="8" fill="#450a0a" stroke="#7f1d1d" stroke-width="1.5"/>
+      <text x="822" y="158" text-anchor="middle" fill="#f87171" font-size="11" font-weight="500" font-family="Inter">Failed</text>
+      <text x="822" y="173" text-anchor="middle" fill="#7f1d1d" font-size="9" font-family="Inter">no budget</text>
+    </g>
+
+    <!-- Escalate label on dashed arc -->
+    <text x="490" y="210" text-anchor="middle" fill="#4b5563" font-size="9" font-family="JetBrains Mono">escalate → next tier</text>
+  </svg>
+</div>
+
+<style>
+.pipeline-node rect { transition: stroke .2s, filter .2s; }
+.pipeline-node.active rect { stroke: #22d3ee !important; filter: url(#glow); }
+.pipeline-node.active text:first-of-type { fill: #22d3ee !important; }
+</style>
+
+<!-- Episode log -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+
+  <!-- Recent episodes -->
+  <div class="card" style="padding:20px;">
+    <div style="font-size:13px;font-weight:500;margin-bottom:14px;">Recent chunk episodes</div>
+    <div id="episodeList" style="font-size:12px;font-family:'JetBrains Mono';"></div>
+  </div>
+
+  <!-- Live node activity -->
+  <div class="card" style="padding:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-size:13px;font-weight:500;">Live node activity</div>
+      <span id="liveLabel" style="font-size:11px;color:#4b5563;">idle</span>
+    </div>
+    <div id="nodeLog" style="height:200px;overflow-y:auto;font-size:12px;font-family:'JetBrains Mono';background:#09090f;border-radius:8px;padding:12px;">
+      <span style="color:#374151;">// watching for events…</span>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Load recent episodes from DB via /api/analytics ───────────────────────────
+fetch("/api/history").then(r=>r.json()).then(prs=>{
+  const el = document.getElementById("episodeList");
+  if(!prs.length){ el.innerHTML='<span style="color:#374151;">No episodes yet.</span>'; return; }
+  el.innerHTML = prs.slice(0,8).map(pr=>{
+    const verdict = pr.critical_count > 0
+      ? `<span style="color:#f87171;">✗ ${pr.critical_count} crit</span>`
+      : `<span style="color:#34d399;">✓ clean</span>`;
+    return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1e2130;">
+      <span style="color:#9ca3af;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:65%;">${pr.pr_title||pr.id}</span>
+      <span>${verdict}</span>
+    </div>`;
+  }).join("");
+}).catch(()=>{});
+
+// ── Node highlight helpers ────────────────────────────────────────────────────
+const NODES = {
+  chunk_started:   "node-classifier",
+  model_selected:  "node-router",
+  sat_spent:       "node-reviewer",
+  finding_found:   "node-reviewer",
+  chunk_done:      "node-verifier",
+};
+const EDGES = {
+  model_selected:  "edge-cls-rtr",
+  sat_spent:       "edge-rtr-rev",
+  finding_found:   "edge-rev-ver",
+};
+
+let _activeNode = null, _activeEdge = null;
+function activateNode(id) {
+  if(_activeNode) document.getElementById(_activeNode)?.classList.remove("active");
+  if(id){ document.getElementById(id)?.classList.add("active"); }
+  _activeNode = id;
+}
+function activateEdge(id) {
+  if(_activeEdge){ const el=document.getElementById(_activeEdge); if(el) el.setAttribute("opacity","0"); }
+  if(id){ const el=document.getElementById(id); if(el) el.setAttribute("opacity","1"); }
+  _activeEdge = id;
+}
+
+// ── SSE → node highlighting ───────────────────────────────────────────────────
+const nodeLog = document.getElementById("nodeLog");
+const liveLabel = document.getElementById("liveLabel");
+let _logFirst = true;
+
+window.addEventListener("vs", e=>{
+  const ev = e.detail;
+  liveLabel.innerHTML = `<span style="color:#22d3ee;">● live</span>`;
+
+  activateNode(NODES[ev.type] || null);
+  activateEdge(EDGES[ev.type] || null);
+
+  if(_logFirst){ nodeLog.innerHTML=""; _logFirst=false; }
+  const line = document.createElement("div");
+
+  switch(ev.type){
+    case "chunk_started":
+      line.style.color="#6b7280";
+      line.textContent = `[classifier]  ${ev.file}  →  ${ev.tag||"?"}`;
+      break;
+    case "model_selected":
+      line.style.color="#818cf8";
+      line.textContent = `[router]  → ${ev.model_id}  (${ev.cost_sats} sats)`;
+      break;
+    case "sat_spent":
+      line.style.color="#fbbf24";
+      line.textContent = `[reviewer]  ⚡ −${ev.amount} sats`;
+      break;
+    case "finding_found":
+      line.style.color="#f87171";
+      line.textContent = `[reviewer]  ⚠ ${ev.severity}: ${ev.description?.slice(0,60)}`;
+      break;
+    case "chunk_done":
+      line.style.color="#34d399";
+      line.textContent = `[verifier]  ${ev.finding_count} finding(s) accepted`;
+      activateNode(null); activateEdge(null);
+      break;
+    case "review_complete":
+      line.style.color="#22d3ee";
+      line.textContent = `[done]  PR complete  ${ev.total_cost} sats`;
+      activateNode(null); activateEdge(null);
+      setTimeout(()=>fetch("/api/history").then(r=>r.json()).then(prs=>{
+        // refresh episode list
+        if(prs.length) document.getElementById("episodeList").innerHTML = prs.slice(0,8).map(pr=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1e2130;"><span style="color:#9ca3af;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:65%;">${pr.pr_title||pr.id}</span><span style="color:${pr.critical_count>0?'#f87171':'#34d399'}">${pr.critical_count>0?'✗':'✓'}</span></div>`).join("");
+      }), 800);
+      break;
+    default:
+      line.style.color="#4b5563";
+      line.textContent = JSON.stringify(ev);
+  }
+
+  nodeLog.appendChild(line);
+  nodeLog.scrollTop = nodeLog.scrollHeight;
+});
+</script>
+{% endblock %}

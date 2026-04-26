@@ -1,5 +1,7 @@
 import os
 import secrets
+import ipaddress
+from urllib.parse import urlparse
 
 from github import Github, GithubException
 
@@ -15,9 +17,59 @@ def get_user_repos(token: str) -> list[dict]:
     ]
 
 
+def _is_public_webhook_url(url: str) -> bool:
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return False
+
+    if parsed.scheme not in {"http", "https"}:
+        return False
+
+    hostname = (parsed.hostname or "").strip().lower()
+    if not hostname:
+        return False
+
+    if hostname in {"localhost", "127.0.0.1", "0.0.0.0", "::1"}:
+        return False
+
+    if hostname.endswith(".local"):
+        return False
+
+    try:
+        ip = ipaddress.ip_address(hostname)
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_unspecified:
+            return False
+    except ValueError:
+        pass
+
+    return True
+
+
+def _resolve_webhook_url() -> str:
+    webhook_url = os.environ.get("WEBHOOK_URL", "").strip()
+    if not webhook_url:
+        base = os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
+        if base:
+            webhook_url = f"{base}/webhook/github"
+
+    if not webhook_url:
+        raise ValueError(
+            "Missing WEBHOOK_URL. Set WEBHOOK_URL to a public URL, e.g. "
+            "https://<your-domain>/webhook/github or https://<ngrok-id>.ngrok-free.app/webhook/github"
+        )
+
+    if not _is_public_webhook_url(webhook_url):
+        raise ValueError(
+            f"Invalid WEBHOOK_URL '{webhook_url}'. GitHub requires a publicly reachable URL (not localhost/private IP)."
+        )
+
+    return webhook_url
+
+
 def register_webhook(repo_full_name: str, github_token: str) -> tuple[int, str]:
     """Register push+pull_request webhook. Returns (hook_id, secret)."""
-    webhook_url = os.environ.get("WEBHOOK_URL", "http://localhost:8000/webhook/github")
+    webhook_url = _resolve_webhook_url()
     webhook_secret = secrets.token_hex(32)
 
     repo = _gh(github_token).get_repo(repo_full_name)

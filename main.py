@@ -4,12 +4,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from auth.github_oauth import router as auth_router
 from gh.webhook import router as webhook_router
 from dashboard.events import router as events_router
+from dashboard.server import router as dashboard_router
 from db.store import init_db
 from registry.loader import load_registry
 from workers.factory import create_worker_router
@@ -34,11 +37,8 @@ app.add_middleware(
     https_only=False,  # flip to True in prod
 )
 
+app.include_router(dashboard_router)
 app.include_router(auth_router)
 app.include_router(webhook_router)
 app.include_router(events_router)
-
-
-@app.get("/")
-async def root():
-    return {"status": "ok"}
+app.mount("/static", StaticFiles(directory=Path("dashboard/static")), name="static")

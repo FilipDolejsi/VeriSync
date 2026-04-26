@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Docs — VeriSync</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#050508;--card:#111219;--border:#1c1e2e;--purple:#7c3aed;--cyan:#22d3ee;--text:#f0f1f8;--muted:#6b7280;--dim:#374151}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh}
+  a{text-decoration:none;color:inherit}
+  ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#1d1f2e;border-radius:4px}
+
+  .nav{background:rgba(5,5,8,.85);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.05);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+  .logo{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;margin-right:16px}
+  .logo-icon{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--purple),var(--cyan));display:flex;align-items:center;justify-content:center;font-size:13px}
+  .nav-link{font-size:13px;color:var(--muted);padding:6px 12px;border-radius:7px;transition:.12s}
+  .nav-link:hover{color:var(--text);background:rgba(255,255,255,.05)}
+  .nav-link.active{color:var(--cyan)}
+  .nav-left{display:flex;align-items:center;gap:2px}
+  .nav-right{display:flex;align-items:center;gap:12px}
+  .btn-signin{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--purple),#4f46e5);color:#fff;font-weight:600;font-size:13px;padding:8px 18px;border-radius:8px}
+  .avatar{width:26px;height:26px;border-radius:50%;border:2px solid rgba(124,58,237,.4)}
+  .username,.logout{font-size:13px;color:var(--muted)}
+  .logout{font-size:11px;color:var(--dim)}
+
+  /* Layout */
+  .page{max-width:1100px;margin:0 auto;padding:40px 24px;display:grid;grid-template-columns:220px 1fr;gap:48px;align-items:start}
+
+  /* Sidebar */
+  .sidebar{position:sticky;top:80px}
+  .sidebar-label{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.09em;font-weight:500;margin-bottom:12px}
+  .sidebar-section{margin-bottom:20px}
+  .sidebar-section-title{font-size:11px;color:#4b5563;text-transform:uppercase;letter-spacing:.07em;font-weight:500;padding:4px 10px;margin-bottom:4px}
+  .sidebar a{display:block;font-size:13px;color:var(--muted);padding:5px 10px;border-radius:7px;margin-bottom:1px;transition:.12s;border-left:2px solid transparent}
+  .sidebar a:hover{color:var(--text);background:rgba(255,255,255,.04);border-left-color:var(--purple)}
+  .sidebar a.active{color:var(--cyan);border-left-color:var(--cyan)}
+
+  /* Content */
+  .content h1{font-size:32px;font-weight:700;letter-spacing:-.7px;margin-bottom:8px;background:linear-gradient(135deg,#f0f1f8,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .content .lead{color:var(--muted);font-size:15px;line-height:1.75;margin-bottom:48px}
+
+  section{margin-bottom:56px;scroll-margin-top:80px}
+  h2{font-size:20px;font-weight:700;letter-spacing:-.4px;margin-bottom:6px}
+  h3{font-size:15px;font-weight:600;color:#e2e4ed;margin:22px 0 8px}
+  p{color:var(--muted);font-size:14px;line-height:1.85;margin-bottom:12px}
+  ul,ol{color:var(--muted);font-size:14px;line-height:2;padding-left:20px;margin-bottom:12px}
+  li{margin-bottom:2px}
+  strong{color:#e2e4ed}
+  code{background:#13151f;color:var(--cyan);padding:2px 7px;border-radius:5px;font-family:'JetBrains Mono';font-size:12px}
+  pre{background:#06060b;border:1px solid var(--border);border-radius:10px;padding:18px 20px;font-family:'JetBrains Mono';font-size:12px;color:#9ca3af;overflow-x:auto;line-height:1.85;margin:12px 0 16px}
+  .section-divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:12px 0 24px}
+
+  /* Feature cards */
+  .feature-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0}
+  .feature-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px}
+  .feature-card h4{font-size:13px;font-weight:600;margin-bottom:6px}
+  .feature-card p{font-size:12px;color:var(--muted);line-height:1.7;margin:0}
+  .feature-card .icon{font-size:20px;margin-bottom:10px}
+
+  /* Steps */
+  .step-list{margin:16px 0}
+  .step-item{display:flex;gap:16px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+  .step-item:last-child{border:none}
+  .step-num{font-family:'JetBrains Mono';font-size:12px;color:var(--purple);min-width:22px;padding-top:2px;font-weight:500}
+  .step-body h4{font-size:14px;font-weight:500;color:#e2e4ed;margin-bottom:3px}
+  .step-body p{font-size:13px;color:var(--muted);line-height:1.65;margin:0}
+
+  /* Table */
+  .data-table{width:100%;border-collapse:collapse;font-size:13px;margin:12px 0 16px}
+  .data-table th{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;font-weight:500;padding-bottom:10px;text-align:left;border-bottom:1px solid var(--border)}
+  .data-table td{padding:9px 0;border-bottom:1px solid rgba(255,255,255,.04);color:var(--muted);vertical-align:top}
+  .data-table td:first-child{font-family:'JetBrains Mono';font-size:12px;color:var(--cyan);padding-right:16px;white-space:nowrap}
+
+  /* Call-out boxes */
+  .callout{border-radius:10px;padding:16px 18px;margin:14px 0;font-size:13px;line-height:1.7}
+  .callout-tip{background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);color:#c4b5fd}
+  .callout-info{background:rgba(34,211,238,.07);border:1px solid rgba(34,211,238,.18);color:#67e8f9}
+  .callout-warn{background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.18);color:#fcd34d}
+  .callout-label{font-weight:600;margin-bottom:4px}
+
+  /* Badge/cost pills */
+  .cost-grid{display:flex;flex-wrap:wrap;gap:12px;margin:12px 0}
+  .cost-pill{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;text-align:center}
+  .cost-pill .model{font-family:'JetBrains Mono';font-size:11px;color:var(--muted);margin-bottom:4px}
+  .cost-pill .price{font-size:18px;font-weight:700;color:#fbbf24}
+
+  @media(max-width:760px){.page{grid-template-columns:1fr}.sidebar{display:none}.feature-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-left">
+    <a href="/" class="logo"><div class="logo-icon">⚡</div>VeriSync</a>
+    <a href="/dashboard" class="nav-link" id="dashLink" style="display:none">Dashboard</a>
+    <a href="/graph"     class="nav-link" id="graphLink" style="display:none">Pipeline</a>
+    <a href="/docs"      class="nav-link active">Docs</a>
+  </div>
+  <div class="nav-right">
+    <div id="userNav" style="display:none;align-items:center;gap:10px">
+      <img id="avatar" class="avatar" src="" alt="">
+      <span id="username" class="username"></span>
+      <a href="/auth/logout" class="logout">logout</a>
+    </div>
+    <a href="/auth/login" id="loginBtn" class="btn-signin">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+      Sign in
+    </a>
+  </div>
+</nav>
+
+<div class="page">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-label">Documentation</div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Getting started</div>
+      <a href="#what-is-verisync">What is VeriSync?</a>
+      <a href="#quickstart">Quickstart</a>
+      <a href="#connecting-repos">Connecting repos</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Using the dashboard</div>
+      <a href="#dashboard-overview">Dashboard overview</a>
+      <a href="#live-feed">Reading the live feed</a>
+      <a href="#findings">Understanding findings</a>
+      <a href="#spending">Tracking spend</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Pipeline & models</div>
+      <a href="#pipeline-stages">Pipeline stages</a>
+      <a href="#model-registry">Model registry</a>
+      <a href="#router">RL Router</a>
+      <a href="#costs">Cost model</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Setup reference</div>
+      <a href="#env-vars">Environment variables</a>
+      <a href="#webhooks">Webhooks</a>
+    </div>
+  </aside>
+
+  <!-- Content -->
+  <div class="content">
+    <h1>VeriSync Docs</h1>
+    <p class="lead">Everything you need to get reviews running, understand the output, and tune the system for your codebase.</p>
+
+    <!-- ── What is VeriSync ─────────────────────────────────────────────────── -->
+    <section id="what-is-verisync">
+      <h2>What is VeriSync?</h2>
+      <div class="section-divider"></div>
+      <p>VeriSync automatically reviews every PR and push to <code>main</code>. It splits each diff into chunks, routes each chunk to the cheapest AI model that can handle it, and posts verified findings as inline GitHub comments — all without you doing anything.</p>
+      <p>The key difference from other AI review tools: <strong>every AI call costs real Bitcoin sats</strong>. The cost appears in your dashboard, attributed to the exact model, file, and finding that generated it. Nothing is hidden in an opaque subscription.</p>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="icon">⚡</div>
+          <h4>Economic accountability</h4>
+          <p>Every finding has a price tag, a model behind it, and a Lightning transaction receipt.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">🧠</div>
+          <h4>Intelligent routing</h4>
+          <p>The RL router learns your codebase and sends expensive models only where they're needed.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">🛡️</div>
+          <h4>Verified findings</h4>
+          <p>A verifier agent checks every finding before it reaches you. No false-positive noise.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">🔗</div>
+          <h4>Zero-friction</h4>
+          <p>Registers GitHub webhooks automatically. Push code, get reviewed. No buttons to press.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Quickstart ──────────────────────────────────────────────────────── -->
+    <section id="quickstart">
+      <h2>Quickstart</h2>
+      <div class="section-divider"></div>
+
+      <h3>1. Clone and install</h3>
+      <pre>git clone https://github.com/your-org/verisync && cd verisync
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt</pre>
+
+      <h3>2. Create a GitHub OAuth App</h3>
+      <p>Go to <strong>GitHub → Settings → Developer settings → OAuth Apps → New OAuth App</strong>.</p>
+      <ul>
+        <li>Homepage URL: <code>http://localhost:8000</code></li>
+        <li>Callback URL: <code>http://localhost:8000/auth/callback</code></li>
+        <li>Required scopes: <code>repo</code>, <code>read:user</code>, <code>admin:repo_hook</code></li>
+      </ul>
+
+      <h3>3. Fill in .env</h3>
+      <pre>GITHUB_CLIENT_ID=your_client_id
+GITHUB_CLIENT_SECRET=your_client_secret
+GITHUB_REDIRECT_URI=http://localhost:8000/auth/callback
+SESSION_SECRET_KEY=   # python -c "import secrets; print(secrets.token_hex(32))"
+ANTHROPIC_API_KEY=sk-ant-...  # only if using Claude models
+WEBHOOK_URL=https://xxxx.ngrok.io/webhook/github  # public URL for GitHub</pre>
+
+      <h3>4. Pull models and start</h3>
+      <pre>ollama pull llama3:8b && ollama pull mistral:7b  # optional local models
+python -m router.seed      # seed RL router with training data
+uvicorn main:app --reload  # start on :8000</pre>
+
+      <div class="callout callout-tip">
+        <div class="callout-label">💡 For local development</div>
+        Use <code>ngrok http 8000</code> to get a public URL for webhook delivery, then set that as <code>WEBHOOK_URL</code>.
+      </div>
+    </section>
+
+    <!-- ── Connecting repos ───────────────────────────────────────────────── -->
+    <section id="connecting-repos">
+      <h2>Connecting repos</h2>
+      <div class="section-divider"></div>
+      <p>After signing in, you'll see a <strong>Watch a repo…</strong> dropdown in the top nav. Select any repo — VeriSync immediately registers a webhook on it via the GitHub API.</p>
+      <div class="step-list">
+        <div class="step-item"><div class="step-num">1</div><div class="step-body"><h4>Select a repo</h4><p>Click the dropdown in the nav bar and choose a repo. You'll see a confirmation toast.</p></div></div>
+        <div class="step-item"><div class="step-num">2</div><div class="step-body"><h4>Webhook registered</h4><p>VeriSync calls the GitHub API to create a <code>push</code> + <code>pull_request</code> webhook targeting your public URL.</p></div></div>
+        <div class="step-item"><div class="step-num">3</div><div class="step-body"><h4>Push to trigger</h4><p>Open a PR or push directly to <code>main</code>. The review starts within seconds — watch the live feed on the Dashboard.</p></div></div>
+      </div>
+      <div class="callout callout-info">
+        <div class="callout-label">ℹ️ What triggers a review</div>
+        Pull requests opened or updated targeting <code>main</code>, and direct pushes to <code>main</code>. All other branches and events are silently ignored.
+      </div>
+    </section>
+
+    <!-- ── Dashboard overview ─────────────────────────────────────────────── -->
+    <section id="dashboard-overview">
+      <h2>Dashboard overview</h2>
+      <div class="section-divider"></div>
+      <p>The dashboard is your main surface. It loads live from the API and updates automatically when a review completes.</p>
+      <table class="data-table">
+        <thead><tr><th>Panel</th><th>What it shows</th></tr></thead>
+        <tbody>
+          <tr><td>Stat strip</td><td>Total sats spent, PRs reviewed, total findings, and verifier pass rate — updates after each review.</td></tr>
+          <tr><td>Live feed</td><td>Real-time event stream showing each chunk as it's processed. Hover to pause scrolling.</td></tr>
+          <tr><td>Cost by model</td><td>Donut chart showing how spend is distributed across models. Hover for exact figures.</td></tr>
+          <tr><td>Findings by category</td><td>Bar chart of finding counts grouped by type (security, logic, style, etc.) and severity.</td></tr>
+          <tr><td>High-risk files</td><td>Files with the most findings across all reviews — your highest-attention areas.</td></tr>
+          <tr><td>PR history</td><td>Chronological list of all reviewed PRs. Click any row for the full report.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ── Live feed ──────────────────────────────────────────────────────── -->
+    <section id="live-feed">
+      <h2>Reading the live feed</h2>
+      <div class="section-divider"></div>
+      <p>The live feed shows every step of a review as it happens. Events arrive over SSE (Server-Sent Events) and are automatically reconnected if the connection drops.</p>
+      <table class="data-table">
+        <thead><tr><th>Event</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>▶ file.py [tag]</td><td>A new chunk has started processing. The tag is the classifier's output (style, logic, security, architecture, test-coverage).</td></tr>
+          <tr><td>→ model-id N sats</td><td>The router has selected a model and tier for this chunk. Cost shown before the call is made.</td></tr>
+          <tr><td>⚡ −N sats</td><td>The worker call completed and sats were deducted from your wallet.</td></tr>
+          <tr><td>[severity] description</td><td>A finding was produced by the reviewer and is being sent to the verifier.</td></tr>
+          <tr><td>✓ N finding(s)</td><td>The verifier accepted the findings. They will appear as GitHub comments.</td></tr>
+          <tr><td>━ done</td><td>The full PR review is complete. Dashboard stats update automatically.</td></tr>
+        </tbody>
+      </table>
+      <div class="callout callout-tip">
+        <div class="callout-label">💡 Tip</div>
+        Hover over the live feed to pause auto-scrolling. Move the mouse away to resume.
+      </div>
+    </section>
+
+    <!-- ── Findings ───────────────────────────────────────────────────────── -->
+    <section id="findings">
+      <h2>Understanding findings</h2>
+      <div class="section-divider"></div>
+      <p>Findings are posted as inline PR review comments on GitHub, one per issue. Each comment includes the model that found it, the confidence score, the suggested fix, and the cost.</p>
+      <h3>Severity levels</h3>
+      <table class="data-table">
+        <thead><tr><th>Severity</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>critical 🔴</td><td>Security vulnerabilities, data loss risks, or broken logic that must be fixed before merging.</td></tr>
+          <tr><td>warning ⚠️</td><td>Code quality issues, performance problems, or logic edge cases worth addressing.</td></tr>
+          <tr><td>info 🔵</td><td>Style suggestions, naming conventions, or test coverage notes. Nice-to-have.</td></tr>
+        </tbody>
+      </table>
+      <h3>The verifier</h3>
+      <p>Every finding passes through a verifier agent (Gemini Flash) that checks two things: <strong>Is this issue real?</strong> and <strong>Is the suggestion actionable?</strong> Findings that don't pass verification are discarded before reaching GitHub. This is why the "Verifier pass" stat matters — a lower pass rate means the reviewer model is producing lower-quality findings and may need replacing in the registry.</p>
+    </section>
+
+    <!-- ── Spending ───────────────────────────────────────────────────────── -->
+    <section id="spending">
+      <h2>Tracking spend</h2>
+      <div class="section-divider"></div>
+      <p>VeriSync uses <code>USE_MOCK_WALLET=true</code> by default — all sats are in-memory and reset on restart. This is fine for development. When you're ready to use real Lightning payments, set <code>USE_MOCK_WALLET=false</code> and configure your MDK wallet.</p>
+      <p>The <strong>Cost by model</strong> chart on the dashboard shows exactly how your budget is being used. If a single model dominates, check whether the RL router has been seeded with enough episodes — run <code>python -m router.seed</code> to add 80 synthetic training examples.</p>
+      <div class="callout callout-warn">
+        <div class="callout-label">⚠️ Budget tip</div>
+        Security chunks routed to <code>claude-sonnet</code> (150 sats) dominate cost. If you're on a tight budget, lower the <code>cost_sats</code> threshold for escalation or remove expensive models from <code>registry.yaml</code>.
+      </div>
+    </section>
+
+    <!-- ── Pipeline stages ───────────────────────────────────────────────── -->
+    <section id="pipeline-stages">
+      <h2>Pipeline stages</h2>
+      <div class="section-divider"></div>
+      <p>Each PR diff is split into per-hunk chunks. All chunks for a PR process concurrently. Visit the <a href="/graph" style="color:var(--cyan)">Pipeline page</a> to watch nodes light up live.</p>
+
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-num">01</div>
+          <div class="step-body">
+            <h4>Classifier <code style="font-size:11px">llama3:8b · 5 sats</code></h4>
+            <p>Tags each chunk as <code>style</code>, <code>logic</code>, <code>security</code>, <code>architecture</code>, or <code>test-coverage</code>. Always runs first — this tag drives the router's prediction.</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">02</div>
+          <div class="step-body">
+            <h4>Router <code style="font-size:11px">RL model · 0 sats</code></h4>
+            <p>Uses the classifier tag, file extension, and diff size to predict the cheapest model tier likely to produce a verified finding. Falls back to tier 0 if not enough training data.</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">03</div>
+          <div class="step-body">
+            <h4>Reviewer <code style="font-size:11px">Tier 0–5 · 5–150 sats/chunk</code></h4>
+            <p>Calls the worker endpoint for the selected model. Returns a list of findings: issue description, line number, severity, and suggested fix.</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">04</div>
+          <div class="step-body">
+            <h4>Verifier <code style="font-size:11px">Gemini Flash · 40 sats</code></h4>
+            <p>Validates each finding. Sets <code>verifier_accepted=true</code> and writes an episode to SQLite. If rejected and budget allows, escalates to the next tier.</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">05</div>
+          <div class="step-body">
+            <h4>Escalate <code style="font-size:11px">— sats</code></h4>
+            <p>If the verifier rejects findings and <code>retry_count &lt; max_retries</code>, bumps to the next model tier and re-runs from the Reviewer. Max 2 retries per chunk.</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">06</div>
+          <div class="step-body">
+            <h4>Synthesiser <code style="font-size:11px">Gemini Flash · flat fee</code></h4>
+            <p>Runs once per PR after all chunks complete. Groups and deduplicates findings, generates the summary comment, and posts everything to the GitHub PR.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Model registry ─────────────────────────────────────────────────── -->
+    <section id="model-registry">
+      <h2>Model registry</h2>
+      <div class="section-divider"></div>
+      <p>The registry is a YAML file (<code>registry.yaml</code>) at the project root. On startup, VeriSync reads it and registers one worker endpoint per model. Add a model, restart the server — done.</p>
+      <pre>models:
+  - id: llama3-8b          # used in URLs and logs
+    name: "llama3:8b"      # passed to the provider API
+    provider: ollama       # "ollama" | "anthropic"
+    cost_sats: 5           # deducted per chunk
+    endpoint_url: "http://localhost:8000/worker/llama3-8b"
+    capability_tags: ["style", "classify"]
+
+  - id: claude-sonnet
+    name: "claude-sonnet-4-5"
+    provider: anthropic
+    cost_sats: 150
+    endpoint_url: "http://localhost:8000/worker/claude-sonnet"
+    capability_tags: ["security", "architecture", "logic"]</pre>
+
+      <div class="callout callout-info">
+        <div class="callout-label">ℹ️ Adding a custom model</div>
+        Add an entry to <code>registry.yaml</code>, set <code>provider: ollama</code> and pull the model locally (<code>ollama pull your-model</code>), then restart the server. The new worker endpoint appears automatically and the router will start routing to it.
+      </div>
+
+      <h3>Capability tags</h3>
+      <p>Tags are hints for the router — they indicate what this model is good at. The router uses them alongside classifier output and historical episode data to make predictions.</p>
+      <table class="data-table">
+        <thead><tr><th>Tag</th><th>Use for</th></tr></thead>
+        <tbody>
+          <tr><td>style</td><td>Formatting, naming, dead code, comment quality</td></tr>
+          <tr><td>logic</td><td>Algorithm correctness, edge cases, null handling</td></tr>
+          <tr><td>security</td><td>Injection, XSS, auth bypass, hardcoded secrets</td></tr>
+          <tr><td>architecture</td><td>Coupling, God objects, circular dependencies</td></tr>
+          <tr><td>test-coverage</td><td>Missing tests, untested branches</td></tr>
+          <tr><td>classify</td><td>Models also suitable for the Classifier stage</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ── RL Router ──────────────────────────────────────────────────────── -->
+    <section id="router">
+      <h2>RL Router</h2>
+      <div class="section-divider"></div>
+      <p>The router predicts the cheapest model tier that will produce a verified finding for a given chunk. It uses a <strong>OneVsRest logistic classifier</strong> with these features:</p>
+      <ul>
+        <li>Sentence embedding of the diff text (384 dimensions, all-MiniLM-L6-v2)</li>
+        <li>One-hot encoding of the classifier tag</li>
+        <li>Log of cost_sats per tier</li>
+      </ul>
+      <p>The router retrains every 10 new episodes. On first run (no history), it defaults to tier 0 (cheapest model).</p>
+      <h3>Seeding the router</h3>
+      <p>Run this once before demo to generate synthetic training data across all tiers:</p>
+      <pre>python -m router.seed</pre>
+      <p>This inserts 80 episodes into the SQLite database with realistic tag/tier/outcome distributions. The router will train immediately on the next request.</p>
+    </section>
+
+    <!-- ── Costs ──────────────────────────────────────────────────────────── -->
+    <section id="costs">
+      <h2>Cost model</h2>
+      <div class="section-divider"></div>
+      <p>Each worker call deducts <code>cost_sats</code> from the user's wallet. Costs are per chunk (one hunk of one file), not per PR. A typical PR with 10 chunks costs 50–300 sats depending on what the router selects.</p>
+      <div class="cost-grid">
+        <div class="cost-pill"><div class="model">llama3-8b</div><div class="price">5 sats</div></div>
+        <div class="cost-pill"><div class="model">mistral-7b</div><div class="price">10 sats</div></div>
+        <div class="cost-pill"><div class="model">gemma2-9b</div><div class="price">12 sats</div></div>
+        <div class="cost-pill"><div class="model">llama3-70b</div><div class="price">18 sats</div></div>
+        <div class="cost-pill"><div class="model">claude-haiku</div><div class="price">40 sats</div></div>
+        <div class="cost-pill"><div class="model">claude-sonnet</div><div class="price">150 sats</div></div>
+      </div>
+      <div class="callout callout-tip">
+        <div class="callout-label">💡 USE_MOCK_WALLET=true</div>
+        All sats are in-memory by default. Nothing leaves your machine. Set to <code>false</code> only when you're ready for real Lightning payments.
+      </div>
+    </section>
+
+    <!-- ── Env vars ───────────────────────────────────────────────────────── -->
+    <section id="env-vars">
+      <h2>Environment variables</h2>
+      <div class="section-divider"></div>
+      <table class="data-table">
+        <thead><tr><th>Variable</th><th>Required</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>GITHUB_CLIENT_ID</td><td><span style="color:#f87171">yes</span></td><td>GitHub OAuth App client ID</td></tr>
+          <tr><td>GITHUB_CLIENT_SECRET</td><td><span style="color:#f87171">yes</span></td><td>GitHub OAuth App client secret</td></tr>
+          <tr><td>GITHUB_REDIRECT_URI</td><td><span style="color:#f87171">yes</span></td><td>Must exactly match the callback URL in your OAuth App</td></tr>
+          <tr><td>SESSION_SECRET_KEY</td><td><span style="color:#f87171">yes</span></td><td>Random 32-byte hex. Generate: <code>python -c "import secrets; print(secrets.token_hex(32))"</code></td></tr>
+          <tr><td>ANTHROPIC_API_KEY</td><td><span style="color:#fbbf24">if claude</span></td><td>Required if any registry model uses <code>provider: anthropic</code></td></tr>
+          <tr><td>OLLAMA_BASE_URL</td><td><span style="color:var(--dim)">no</span></td><td>Default: <code>http://localhost:11434</code></td></tr>
+          <tr><td>WEBHOOK_URL</td><td><span style="color:#f87171">yes</span></td><td>Public URL GitHub sends events to. Use ngrok locally.</td></tr>
+          <tr><td>DATABASE_PATH</td><td><span style="color:var(--dim)">no</span></td><td>Default: <code>./verisync.db</code></td></tr>
+          <tr><td>REGISTRY_PATH</td><td><span style="color:var(--dim)">no</span></td><td>Default: <code>./registry.yaml</code></td></tr>
+          <tr><td>USE_MOCK_WALLET</td><td><span style="color:var(--dim)">no</span></td><td>Default: <code>true</code>. Set <code>false</code> for real Lightning.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ── Webhooks ───────────────────────────────────────────────────────── -->
+    <section id="webhooks">
+      <h2>Webhooks</h2>
+      <div class="section-divider"></div>
+      <p>VeriSync registers <code>push</code> and <code>pull_request</code> webhooks automatically when you select a repo. The webhook secret is generated per-repo and stored in SQLite — it's used to verify <code>X-Hub-Signature-256</code> on every incoming request.</p>
+      <h3>Local development</h3>
+      <pre>ngrok http 8000
+# Copy the https URL, e.g. https://abc123.ngrok.io
+# Set WEBHOOK_URL=https://abc123.ngrok.io/webhook/github in .env
+# Restart the server</pre>
+      <div class="callout callout-warn">
+        <div class="callout-label">⚠️ ngrok URL changes on restart</div>
+        If you restart ngrok, you get a new URL. Re-register the webhook by unwatching and re-watching the repo from the dashboard dropdown, or update the webhook URL directly in GitHub Settings → Webhooks.
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+// Optional auth nav population
+fetch('/api/me').then(r => r.ok ? r.json() : null).then(user => {
+  if (!user) return;
+  document.getElementById('loginBtn').style.display = 'none';
+  const row = document.getElementById('userNav');
+  row.style.display = 'flex';
+  document.getElementById('avatar').src = user.avatar_url;
+  document.getElementById('username').textContent = user.username;
+  document.getElementById('dashLink').style.display = '';
+  document.getElementById('graphLink').style.display = '';
+}).catch(() => {});
+
+// Highlight active sidebar link on scroll
+const sections = document.querySelectorAll('section[id]');
+const links    = document.querySelectorAll('.sidebar a');
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      links.forEach(l => l.classList.remove('active'));
+      const link = document.querySelector(`.sidebar a[href="#${e.target.id}"]`);
+      if (link) link.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+sections.forEach(s => obs.observe(s));
+</script>
+</body>
+</html>
