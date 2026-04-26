@@ -31,13 +31,31 @@ def _is_safe_redirect_target(redirect: str) -> bool:
     return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
 
+def _get_github_redirect_uri(request: Request) -> str:
+    """Return the callback URL GitHub must redirect back to.
+
+    Prefer an explicit GITHUB_REDIRECT_URI when provided, otherwise derive it
+    from the deployed backend URL (Render / proxy-safe) and finally fall back
+    to the current request URL.
+    """
+    configured = os.environ.get("GITHUB_REDIRECT_URI")
+    if configured:
+        return configured.rstrip("/")
+
+    backend_url = os.environ.get("BACKEND_URL") or os.environ.get("RENDER_EXTERNAL_URL")
+    if backend_url:
+        return backend_url.rstrip("/") + "/auth/callback"
+
+    return str(request.url_for("callback")).rstrip("/")
+
+
 @router.get("/login")
 async def login(request: Request, redirect: str = Query("/dashboard")):
     if not _is_safe_redirect_target(redirect):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid redirect URL")
 
     request.session["post_auth_redirect"] = redirect
-    redirect_uri = os.environ["GITHUB_REDIRECT_URI"]
+    redirect_uri = _get_github_redirect_uri(request)
     return await oauth.github.authorize_redirect(request, redirect_uri)
 
 
