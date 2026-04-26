@@ -19,7 +19,9 @@
       "Bash(python -m pytest tests/ -v --tb=short --ignore=tests/test_llm_providers.py)",
       "Bash(python -m pytest tests/ --ignore=tests/test_llm_providers.py -v --tb=short)",
       "Bash(python -c ' *)",
-      "Bash(python -m pytest tests/ -q --tb=short)"
+      "Bash(python -m pytest tests/ -q --tb=short)",
+      "Bash(GITHUB_CLIENT_ID=x GITHUB_CLIENT_SECRET=x SESSION_SECRET_KEY=x GITHUB_REDIRECT_URI=x FRONTEND_URL=x .venv/bin/python -c \"from main import app; print\\('OK'\\)\")",
+      "Bash(GITHUB_CLIENT_ID=x GITHUB_CLIENT_SECRET=x SESSION_SECRET_KEY=x GITHUB_REDIRECT_URI=x FRONTEND_URL=x .venv/bin/python -c \"from main import app; print\\('Backend OK'\\)\")"
     ]
   }
 }

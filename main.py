@@ -1,11 +1,12 @@
 import os
+from contextlib import asynccontextmanager
+from pathlib import Path
 
 from dotenv import load_dotenv
 load_dotenv()
 
-from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from auth.github_oauth import router as auth_router
@@ -28,39 +29,21 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="VeriSync", lifespan=lifespan)
 
-# frontend_origin = os.environ.get("https://veri-sync.lovable.app", "http://localhost:3000")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "https://veri-sync.lovable.app",
-        "https://id-preview--68091988-a492-4c0e-b25b-f2cab9f40249.lovable.app",
-        "https://68091988-a492-4c0e-b25b-f2cab9f40249.lovable.app",
-        "https://68091988-a492-4c0e-b25b-f2cab9f40249.lovableproject.com",  # editor iframe
-        "http://localhost:5173",  # local dev
-        "http://localhost:8080",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ["SESSION_SECRET_KEY"],
     session_cookie="verisync_session",
     max_age=28800,
-    https_only=True,        # REQUIRED on Render (HTTPS)
-    same_site="none",       # REQUIRED for cross-site cookies
+    https_only=os.environ.get("HTTPS_ONLY", "true").lower() == "true",
+    same_site="lax",  # same-domain: lax is correct and more secure than none
 )
 
-
+app.include_router(dashboard_router)
 app.include_router(auth_router)
 app.include_router(webhook_router)
 app.include_router(events_router)
-app.include_router(dashboard_router)
 
-
-@app.get("/")
-async def root():
-    return {"status": "ok"}
+# Serve static assets (nav.js, css, etc.)
+_static = Path("dashboard/static")
+if _static.exists():
+    app.mount("/static", StaticFiles(directory=_static), name="static")

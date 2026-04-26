@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: verisync
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    plan: free
+
+    envVars:
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_REDIRECT_URI
+        sync: false
+      - key: SESSION_SECRET_KEY
+        generateValue: true
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: WEBHOOK_URL
+        sync: false
+      - key: USE_MOCK_WALLET
+        value: "true"
+      - key: HTTPS_ONLY
+        value: "true"
+      - key: DATABASE_PATH
+        value: /data/verisync.db
+      - key: REGISTRY_PATH
+        value: ./registry.yaml
+
+    disk:
+      name: verisync-data
+      mountPath: /data
+      sizeGB: 1

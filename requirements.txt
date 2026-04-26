@@ -1,24 +1,29 @@
-groq
-google-genai
-langgraph
-langchain-core
+# Web
 fastapi
 uvicorn[standard]
-jinja2
+python-multipart
+
+# Auth + sessions
+itsdangerous
 httpx
+
+# GitHub
+PyGithub
+
+# Database
 aiosqlite
+
+# Pipeline / AI
+anthropic
+langgraph
+langchain-core
+groq
+google-genai
+
+# Config
 pydantic>=2.0
 python-dotenv
 pyyaml
-authlib
-itsdangerous
-PyGithub
-rich
-sentence-transformers
-scikit-learn
-numpy
-joblib
+
+# Payments
 requests
-python-multipart
-pytest
-pytest-asyncio
