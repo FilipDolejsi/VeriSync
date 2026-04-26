@@ -7,7 +7,17 @@
       "Bash(python -m pytest tests/test_pipeline.py -v)",
       "Bash(python -m pip install pytest pytest-asyncio)",
       "Bash(python -m pip install langgraph groq google-genai httpx aiosqlite pyyaml)",
-      "Bash(.venv/bin/python -m pytest tests/test_auth.py -q)"
+      "Bash(.venv/bin/python -m pytest tests/test_auth.py -q)",
+      "Bash(python -m pytest tests/test_payments.py tests/test_workers.py tests/test_webhook.py -v --tb=short)",
+      "Bash(pip list *)",
+      "Bash(pip install *)",
+      "Bash(python -c \"import itsdangerous; print\\(itsdangerous.__version__\\)\")",
+      "Bash(python -m pip install itsdangerous anthropic)",
+      "Bash(python -m pip install authlib PyGithub python-dotenv aiosqlite langgraph pyyaml)",
+      "Bash(python -m pytest tests/test_pipeline.py -v --tb=short)",
+      "Bash(python -m pytest tests/test_e2e.py -v --tb=short)",
+      "Bash(python -m pytest tests/ -v --tb=short --ignore=tests/test_llm_providers.py)",
+      "Bash(python -m pytest tests/ --ignore=tests/test_llm_providers.py -v --tb=short)"
     ]
   }
 }

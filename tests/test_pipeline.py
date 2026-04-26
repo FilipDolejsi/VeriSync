@@ -1,3 +1,4 @@
+import sys
 import pytest
 import asyncio
 from unittest.mock import patch, MagicMock
@@ -41,6 +42,11 @@ mock_chunk = PRChunk(
 @patch("pipeline.nodes.httpx.Client")
 @patch("pipeline.nodes.genai.Client")
 async def test_run_chunk_review(mock_genai, mock_httpx, mock_groq):
+    # Evict any mocks injected by test_auth.py so the real db.store is used
+    for _k in list(sys.modules.keys()):
+        if _k in ("db", "db.store"):
+            del sys.modules[_k]
+
     import db.store
     db.store.DB_PATH = "./test_verisync.db"
     from db.store import init_db
@@ -104,7 +110,16 @@ async def test_run_chunk_review(mock_genai, mock_httpx, mock_groq):
 @patch("pipeline.nodes.httpx.Client")
 @patch("pipeline.nodes.genai.Client")
 async def test_run_pr_review(mock_genai, mock_httpx, mock_groq):
+    # Evict any mocks injected by test_auth.py
+    for _k in list(sys.modules.keys()):
+        if _k in ("db", "db.store"):
+            del sys.modules[_k]
+
+    import db.store
+    db.store.DB_PATH = "./test_verisync.db"
+    from db.store import init_db
     import aiosqlite
+    await init_db()
     # 1. Setup Groq mock (classifier)
     mock_groq_instance = MagicMock()
     mock_groq.return_value = mock_groq_instance

@@ -7,8 +7,6 @@ from typing import AsyncGenerator
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
-from auth.github_oauth import get_current_user
-
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -22,13 +20,17 @@ _queues: dict[str, list[asyncio.Queue]] = defaultdict(list)
 async def publish(user_id: str, event: dict):
     """Send an event to all active SSE connections for a user."""
     dead = []
-    for q in _queues[user_id]:
+    # Snapshot the list so concurrent removals by _event_stream don't cause issues
+    for q in list(_queues[user_id]):
         try:
             q.put_nowait(event)
         except asyncio.QueueFull:
             dead.append(q)
     for q in dead:
-        _queues[user_id].remove(q)
+        try:
+            _queues[user_id].remove(q)
+        except ValueError:
+            pass  # already removed by a concurrent _event_stream teardown
 
 
 # ── SSE stream ────────────────────────────────────────────────────────────────
@@ -44,12 +46,16 @@ async def _event_stream(user_id: str, queue: asyncio.Queue) -> AsyncGenerator[st
     except asyncio.CancelledError:
         pass
     finally:
-        _queues[user_id].remove(queue)
+        try:
+            _queues[user_id].remove(queue)
+        except ValueError:
+            pass  # already removed by a concurrent publish cleanup
         logger.info(f"SSE connection closed for user {user_id}")
 
 
 @router.get("/events")
 async def events(request: Request):
+    from auth.github_oauth import get_current_user
     user = await get_current_user(request)
     if not user:
         return StreamingResponse(
