@@ -1,10 +1,11 @@
 import os
 import uuid
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 import httpx
 from authlib.integrations.starlette_client import OAuth
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
 
 from db.store import get_db, upsert_user, get_user_by_github_id, get_user_by_id
@@ -23,8 +24,19 @@ oauth.register(
 )
 
 
+def _is_safe_redirect_target(redirect: str) -> bool:
+    if redirect.startswith("/"):
+        return True
+    parsed = urlparse(redirect)
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+
+
 @router.get("/login")
-async def login(request: Request):
+async def login(request: Request, redirect: str = Query("/dashboard")):
+    if not _is_safe_redirect_target(redirect):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid redirect URL")
+
+    request.session["post_auth_redirect"] = redirect
     redirect_uri = os.environ["GITHUB_REDIRECT_URI"]
     return await oauth.github.authorize_redirect(request, redirect_uri)
 
@@ -69,13 +81,37 @@ async def callback(request: Request):
 
     request.session["user_id"] = user_id
     request.session["github_token"] = access_token
-    return RedirectResponse(url="/dashboard")
+    redirect_url = request.session.pop("post_auth_redirect", "/dashboard")
+    if not _is_safe_redirect_target(redirect_url):
+        redirect_url = "/dashboard"
+    return RedirectResponse(url=redirect_url, status_code=status.HTTP_302_FOUND)
+
+
+@router.get("/me")
+async def me(request: Request):
+    user = await get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
+    return {
+        "id": user["id"],
+        "login": user.get("username"),
+        "name": user.get("username"),
+        "avatar_url": user.get("avatar_url"),
+    }
+
+
+@router.post("/logout")
+async def logout(request: Request):
+    request.session.clear()
+    response = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+    response.delete_cookie("verisync_session")
+    return response
 
 
 @router.get("/logout")
-async def logout(request: Request):
-    request.session.clear()
-    return RedirectResponse(url="/")
+async def logout_compat(request: Request):
+    return await logout(request)
 
 
 async def get_current_user(request: Request) -> dict | None:

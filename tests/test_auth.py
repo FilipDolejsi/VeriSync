@@ -20,6 +20,7 @@ os.environ.setdefault("SESSION_SECRET_KEY", "test-secret-not-for-prod")
 os.environ.setdefault("GITHUB_CLIENT_ID", "test-client-id")
 os.environ.setdefault("GITHUB_CLIENT_SECRET", "test-client-secret")
 os.environ.setdefault("GITHUB_REDIRECT_URI", "http://test/auth/callback")
+os.environ.setdefault("FRONTEND_ORIGIN", "http://localhost:3000")
 
 from main import app  # noqa: E402
 
@@ -75,8 +76,53 @@ async def test_callback_stores_session_and_redirects_to_dashboard(client):
 
 
 @pytest.mark.asyncio
+async def test_callback_redirects_to_requested_redirect(client):
+    fake_profile = {
+        "id": 123456,
+        "login": "filiptest",
+        "avatar_url": "https://avatars.githubusercontent.com/u/123456",
+    }
+
+    mock_gh_response = MagicMock()
+    mock_gh_response.json.return_value = fake_profile
+    mock_gh_response.raise_for_status = MagicMock()
+
+    mock_http_client = AsyncMock()
+    mock_http_client.get.return_value = mock_gh_response
+
+    mock_db = AsyncMock()
+
+    await client.get("/auth/login?redirect=http://localhost:5173/post-auth", follow_redirects=False)
+
+    with (
+        patch("auth.github_oauth.oauth.github.authorize_access_token", new_callable=AsyncMock) as mock_token,
+        patch("httpx.AsyncClient") as mock_httpx,
+        patch("auth.github_oauth.get_db") as mock_get_db,
+    ):
+        mock_token.return_value = {"access_token": "ghp_fake_token_123"}
+        mock_httpx.return_value.__aenter__ = AsyncMock(return_value=mock_http_client)
+        mock_httpx.return_value.__aexit__ = AsyncMock(return_value=False)
+        mock_get_db.return_value.__aenter__ = AsyncMock(return_value=mock_db)
+        mock_get_db.return_value.__aexit__ = AsyncMock(return_value=False)
+
+        response = await client.get(
+            "/auth/callback?code=fake_code&state=fake_state",
+            follow_redirects=False,
+        )
+
+    assert response.status_code in (302, 307)
+    assert response.headers["location"] == "http://localhost:5173/post-auth"
+
+
+@pytest.mark.asyncio
+async def test_me_returns_401_when_not_logged_in(client):
+    response = await client.get("/auth/me")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
 async def test_logout_redirects_to_root(client):
-    response = await client.get("/auth/logout", follow_redirects=False)
+    response = await client.post("/auth/logout", follow_redirects=False)
     assert response.status_code in (302, 307)
     assert response.headers["location"] == "/"
 
