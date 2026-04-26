@@ -40,25 +40,25 @@ def build_graph():
     # We provide dummy classes to adapt the node signatures in nodes.py to LangGraph.
     
     from router.router import Router
-    from db.store import DBStore
     from registry.registry import Registry
 
 
 
     def _classifier(state: ChunkReviewState):
         return classifier_node(state)
-        
+
     def _router(state: ChunkReviewState):
         # wrap the registry for get_tier / get_next_tier methods expected by nodes.py
         reg = Registry(state.registry)
         router_instance = Router()
         return router_node(state, registry=reg, router=router_instance)
-        
+
     def _reviewer(state: ChunkReviewState):
         worker_url = "http://localhost:8000"
         return reviewer_node(state, worker_url=worker_url)
-        
+
     def _verifier(state: ChunkReviewState):
+        from db.store import DBStore  # lazy: resolves against current sys.modules at call time
         db_store = DBStore()
         return verifier_node(state, db_store=db_store)
         
@@ -106,48 +106,61 @@ def build_graph():
 graph = build_graph()
 
 
-async def run_chunk_review(chunk: PRChunk, user_id: str, registry: List[ModelEntry], budget: int) -> ChunkReviewState:
+async def run_chunk_review(
+    chunk: PRChunk,
+    user_id: str,
+    registry: List[ModelEntry],
+    budget: int,
+    wallet_id: str = "",
+) -> ChunkReviewState:
     """
     Entry point per chunk. Initializes state and invokes the graph.
     """
     initial_state = ChunkReviewState(
         chunk=chunk,
         user_id=user_id,
+        wallet_id=wallet_id,
         registry=registry,
         budget_remaining_sats=budget,
-        current_model_id=""
+        current_model_id="",
     )
-    
-    # If state is a BaseModel, LangGraph accepts and returns a dictionary or dict-like object
-    # depending on how StateGraph is configured. LangGraph ainvoke processes the graph async.
+
     result = await graph.ainvoke(initial_state)
-    
+
     if isinstance(result, dict):
         return ChunkReviewState(**result)
     return result
 
 
-async def run_pr_review(pr_id: str, chunks: List[PRChunk], user_id: str, registry: List[ModelEntry], budget: int) -> ReviewReport:
+async def run_pr_review(
+    pr_id: str,
+    chunks: List[PRChunk],
+    user_id: str,
+    registry: List[ModelEntry],
+    budget: int,
+    wallet_id: str = "",
+    pr_url: str = "",
+) -> ReviewReport:
     """
     Orchestrates all chunks for a PR concurrently using asyncio.gather.
     After all chunks are done, synthesises the final report.
     """
-    # Create coroutines for each chunk
     tasks = [
-        run_chunk_review(chunk, user_id, registry, budget)
+        run_chunk_review(chunk, user_id, registry, budget, wallet_id)
         for chunk in chunks
     ]
-    
-    # Run all reviews concurrently
-    final_states = await asyncio.gather(*tasks)
-    
-    # Gather findings
+
+    # return_exceptions=True prevents one failing chunk from cancelling all others
+    final_states = await asyncio.gather(*tasks, return_exceptions=True)
+
     all_findings = []
+    total_cost_sats = 0
     for state in final_states:
+        if isinstance(state, Exception):
+            continue
         if state.findings:
             all_findings.extend(state.findings)
-            
-    # Call synthesiser node
-    report = synthesiser_node(pr_id, all_findings)
-    
+        total_cost_sats += state.chunk_cost_sats
+
+    report = synthesiser_node(pr_id, pr_url, all_findings, total_cost_sats)
     return report

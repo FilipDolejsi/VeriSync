@@ -90,6 +90,7 @@ class RouterDecision(BaseModel):
 class ChunkReviewState(BaseModel):
     chunk: PRChunk
     user_id: str
+    wallet_id: str = ""
     registry: List[ModelEntry]
     budget_remaining_sats: int
     current_model_id: str
@@ -100,6 +101,7 @@ class ChunkReviewState(BaseModel):
     router_decision: Optional[RouterDecision] = None
     retry_count: int = 0
     max_retries: int = 2
+    chunk_cost_sats: int = 0
     status: Literal["running", "done", "failed", "pending", "classified", "routed", "reviewed", "verified", "escalated"] = "running"
     transactions: List[Transaction] = []
     classifier_tag: Optional[str] = None

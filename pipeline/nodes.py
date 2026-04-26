@@ -38,12 +38,13 @@ class Episode:
 
     chunk_id: str
     pr_id: str
+    user_id: str
     model_id: str
     tier_index: int
+    cost_sats: int
     findings: List[Any]
     verifier_accepted: bool
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
-
 
 
 @dataclass
@@ -56,6 +57,8 @@ class ReviewReport:
     summary: str
     priority_actions: List[Dict[str, Any]]
     all_findings: List[Finding]
+    pr_url: str = ""
+    total_cost_sats: int = 0
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
 
@@ -195,8 +198,9 @@ def reviewer_node(
                 language=state.chunk.language or "unknown",
                 tag=state.classifier_tag,
             ),
-            "chunk_id": state.chunk.file_path,
-            "model_id": state.current_model_id,
+            "chunk_id": state.chunk.id,
+            "user_id": state.user_id,
+            "wallet_id": state.wallet_id,
         }
 
         # Build headers with L402 auth if provided
@@ -216,11 +220,20 @@ def reviewer_node(
             )
             response.raise_for_status()
 
-        # Parse findings from response
-        try:
-            findings_data = response.json().get("findings", [])
-        except json.JSONDecodeError:
-            findings_data = []
+        # Parse cost and findings from response
+        response_data = response.json()
+        state.chunk_cost_sats = response_data.get("cost_sats", 0)
+
+        # Accept findings from a top-level 'findings' key (test mocks) or
+        # by parsing the raw LLM text in the 'response' field (real worker).
+        findings_data = response_data.get("findings")
+        if findings_data is None:
+            raw_llm = response_data.get("response", "")
+            try:
+                parsed = json.loads(raw_llm)
+                findings_data = parsed if isinstance(parsed, list) else []
+            except (json.JSONDecodeError, TypeError):
+                findings_data = []
 
         # Store findings in state (mapped to models.Finding)
         state.findings = []
@@ -315,8 +328,10 @@ def verifier_node(
         state.episode = Episode(
             chunk_id=state.chunk.id,
             pr_id=state.chunk.pr_id,
+            user_id=state.user_id,
             model_id=state.current_model_id,
             tier_index=state.current_tier_index,
+            cost_sats=state.chunk_cost_sats,
             findings=state.findings,
             verifier_accepted=state.verifier_accepted,
         )
@@ -389,7 +404,9 @@ def escalate_node(state: ChunkReviewState, registry) -> ChunkReviewState:
 
 def synthesiser_node(
     pr_id: str,
-    all_findings: List[Finding],
+    pr_url: str = "",
+    all_findings: List[Finding] = None,
+    total_cost_sats: int = 0,
 ) -> ReviewReport:
     """
     Synthesize all findings from chunks into final PR review report.
@@ -398,6 +415,9 @@ def synthesiser_node(
     Calls: gemini with SYNTHESISER_PROMPT
     Returns: ReviewReport with summary + priority_actions
     """
+    if all_findings is None:
+        all_findings = []
+
     try:
         logger.info(
             f"Synthesizing review for PR {pr_id} with {len(all_findings)} findings"
@@ -466,6 +486,8 @@ def synthesiser_node(
 
         report = ReviewReport(
             pr_id=pr_id,
+            pr_url=pr_url,
+            total_cost_sats=total_cost_sats,
             total_chunks=len(set(f.chunk_id for f in all_findings)),
             chunks_reviewed=len(all_findings),
             summary=summary,
@@ -478,9 +500,10 @@ def synthesiser_node(
 
     except Exception as e:
         logger.error(f"Synthesiser node failed for PR {pr_id}: {e}")
-        # Return minimal report on error
         return ReviewReport(
             pr_id=pr_id,
+            pr_url=pr_url,
+            total_cost_sats=total_cost_sats,
             total_chunks=0,
             chunks_reviewed=0,
             summary=f"Review failed: {str(e)}",

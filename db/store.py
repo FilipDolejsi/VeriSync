@@ -67,6 +67,7 @@ async def init_db():
             CREATE TABLE IF NOT EXISTS episodes (
                 id TEXT PRIMARY KEY,
                 chunk_id TEXT NOT NULL REFERENCES chunks(id),
+                user_id TEXT,
                 model_id TEXT,
                 tier_index INTEGER,
                 provider TEXT,
@@ -197,20 +198,22 @@ class DBStore:
                 cur.execute(
                     """
                     INSERT INTO episodes (
-                        id, chunk_id, model_id, tier_index, verifier_pass, finding_count, timestamp
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        id, chunk_id, user_id, model_id, tier_index,
+                        verifier_pass, cost_sats, finding_count, timestamp
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         episode_id,
                         episode.chunk_id,
+                        getattr(episode, "user_id", None),
                         episode.model_id,
                         episode.tier_index,
                         1 if episode.verifier_accepted else 0,
+                        getattr(episode, "cost_sats", 0),
                         len(episode.findings) if episode.findings else 0,
-                        episode.timestamp
+                        episode.timestamp,
                     )
                 )
                 conn.commit()
         except Exception as e:
-            # We fail silently or log it so that a DB failure doesn't crash the graph node
             print(f"Error writing episode to DB: {e}")
