@@ -8,7 +8,7 @@ const MODELS = [
 ];
 
 const FEATURES = [
-  { icon: '₿', title: 'Real sats, not credits',   body: 'Each review is a Lightning-style debit. Money actually moves. There's no take-back.' },
+  { icon: '₿', title: 'Real sats, not credits',   body: 'Each review is a Lightning-style debit. Money actually moves. Theres no take-back.' },
   { icon: '⚖', title: 'Bad answers cost the model', body: 'A rejected finding is a refund to you, weighted against the model\'s reputation.' },
   { icon: '📈', title: 'The router learns',          body: 'Each accepted or rejected finding updates a per-tag classifier. Good models inherit the next chunk.' },
   { icon: '📉', title: 'Your bill compounds down',   body: 'Cheap models get a chance to prove themselves on easy hunks. Expensive ones earn the hard ones.' },
