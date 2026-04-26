@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Any
 
 from pydantic import BaseModel
 
@@ -100,5 +100,7 @@ class ChunkReviewState(BaseModel):
     router_decision: Optional[RouterDecision] = None
     retry_count: int = 0
     max_retries: int = 2
-    status: Literal["running", "done", "failed"] = "running"
+    status: Literal["running", "done", "failed", "pending", "classified", "routed", "reviewed", "verified", "escalated"] = "running"
     transactions: List[Transaction] = []
+    classifier_tag: Optional[str] = None
+    episode: Optional[Any] = None

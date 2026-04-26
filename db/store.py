@@ -167,3 +167,42 @@ async def deactivate_watched_repo(db: aiosqlite.Connection, user_id: str, repo_f
         (user_id, repo_full_name),
     )
     await db.commit()
+
+
+# ── Synchronous DBStore for LangGraph Nodes ───────────────────────────────────
+
+import sqlite3
+import uuid
+
+class DBStore:
+    """
+    Synchronous DB operations for nodes that cannot be async.
+    """
+    def write_episode(self, episode):
+        """
+        Writes an Episode to the database synchronously.
+        """
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                cur = conn.cursor()
+                episode_id = str(uuid.uuid4())
+                cur.execute(
+                    """
+                    INSERT INTO episodes (
+                        id, chunk_id, model_id, tier_index, verifier_pass, finding_count, timestamp
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        episode_id,
+                        episode.chunk_id,
+                        episode.model_id,
+                        episode.tier_index,
+                        1 if episode.verifier_accepted else 0,
+                        len(episode.findings) if episode.findings else 0,
+                        episode.timestamp
+                    )
+                )
+                conn.commit()
+        except Exception as e:
+            # We fail silently or log it so that a DB failure doesn't crash the graph node
+            print(f"Error writing episode to DB: {e}")

@@ -8,3 +8,9 @@ build/
 .venv/
 venv/
 env/
+*.db 
+*.sqlite
+*.log
+.DS_Store
+.idea/
+.vscode/

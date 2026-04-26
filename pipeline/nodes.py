@@ -14,8 +14,9 @@ from datetime import datetime
 import httpx
 from google import genai
 from groq import Groq
+import uuid
 
-from pipeline.chunker import PRChunk
+from models import ChunkReviewState, Finding
 from pipeline.prompts import (
     CLASSIFIER_PROMPT,
     REVIEWER_PROMPT,
@@ -32,16 +33,6 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class Finding:
-    """A single finding from code review."""
-
-    issue: str
-    severity: str  # "critical", "major", "minor"
-    line_number: Optional[int] = None
-    suggestion: Optional[str] = None
-
-
-@dataclass
 class Episode:
     """A recorded episode of review for a chunk."""
 
@@ -49,43 +40,10 @@ class Episode:
     pr_id: str
     model_id: str
     tier_index: int
-    findings: List[Finding]
+    findings: List[Any]
     verifier_accepted: bool
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
-
-@dataclass
-class ChunkReviewState:
-    """State for processing a single code chunk through the review pipeline."""
-
-    # Input
-    chunk: PRChunk
-    pr_id: str
-
-    # Classification phase
-    classifier_tag: Optional[str] = None
-
-    # Router phase
-    current_model_id: Optional[str] = None
-    current_tier_index: int = 0
-
-    # Reviewer phase
-    findings: List[Finding] = field(default_factory=list)
-
-    # Verifier phase
-    verifier_accepted: bool = False
-
-    # Escalation tracking
-    retry_count: int = 0
-    max_retries: int = 3
-
-    # Final episode record
-    episode: Optional[Episode] = None
-
-    # Status tracking
-    status: str = (
-        "pending"  # pending, classified, routed, reviewed, verified, failed, escalated
-    )
 
 
 @dataclass
@@ -114,10 +72,10 @@ def classifier_node(state: ChunkReviewState) -> ChunkReviewState:
     Falls back to 'logic' if response invalid.
     """
     try:
-        logger.info(f"Classifying chunk {state.chunk.file} for PR {state.pr_id}")
+        logger.info(f"Classifying chunk {state.chunk.file_path} for PR {state.chunk.pr_id}")
 
         # Prepare diff text from chunk lines
-        diff_text = "\n".join(state.chunk.lines)
+        diff_text = state.chunk.diff_text
 
         # Call Groq API with Llama 3
         groq_api_key = os.getenv("GROQ_API_KEY")
@@ -146,16 +104,16 @@ def classifier_node(state: ChunkReviewState) -> ChunkReviewState:
         }
         if tag not in valid_tags:
             logger.warning(
-                f"Invalid tag '{tag}' for chunk {state.chunk.file}, using 'logic'"
+                f"Invalid tag '{tag}' for chunk {state.chunk.file_path}, using 'logic'"
             )
             tag = "logic"
 
         state.classifier_tag = tag
         state.status = "classified"
-        logger.info(f"Chunk {state.chunk.file} classified as: {tag}")
+        logger.info(f"Chunk {state.chunk.file_path} classified as: {tag}")
 
     except Exception as e:
-        logger.error(f"Classifier node failed for chunk {state.chunk.file}: {e}")
+        logger.error(f"Classifier node failed for chunk {state.chunk.file_path}: {e}")
         state.classifier_tag = "logic"  # fallback
         state.status = "classified"
 
@@ -176,10 +134,10 @@ def router_node(state: ChunkReviewState, registry, router) -> ChunkReviewState:
     """
     try:
         logger.info(
-            f"Routing chunk {state.chunk.file} with tag '{state.classifier_tag}'"
+            f"Routing chunk {state.chunk.file_path} with tag '{state.classifier_tag}'"
         )
 
-        diff_text = "\n".join(state.chunk.lines)
+        diff_text = state.chunk.diff_text
 
         # Call router to predict best model
         model_info = router.predict_model(
@@ -198,7 +156,7 @@ def router_node(state: ChunkReviewState, registry, router) -> ChunkReviewState:
         )
 
     except Exception as e:
-        logger.error(f"Router node failed for chunk {state.chunk.file}: {e}")
+        logger.error(f"Router node failed for chunk {state.chunk.file_path}: {e}")
         # Default to first tier
         state.current_model_id = registry.get_tier(0).get("models", [{}])[0].get("id")
         state.current_tier_index = 0
@@ -225,19 +183,19 @@ def reviewer_node(
     """
     try:
         logger.info(
-            f"Reviewing chunk {state.chunk.file} with model {state.current_model_id}"
+            f"Reviewing chunk {state.chunk.file_path} with model {state.current_model_id}"
         )
 
-        diff_text = "\n".join(state.chunk.lines)
+        diff_text = state.chunk.diff_text
 
         # Prepare request payload
         task_payload = {
             "task": REVIEWER_PROMPT.format(
                 diff_text=diff_text,
-                language=state.chunk.detected_language or "unknown",
+                language=state.chunk.language or "unknown",
                 tag=state.classifier_tag,
             ),
-            "chunk_id": state.chunk.file,
+            "chunk_id": state.chunk.file_path,
             "model_id": state.current_model_id,
         }
 
@@ -259,29 +217,43 @@ def reviewer_node(
             response.raise_for_status()
 
         # Parse findings from response
-        result = response.json()
-        findings_data = result.get("findings", [])
+        try:
+            findings_data = response.json().get("findings", [])
+        except json.JSONDecodeError:
+            findings_data = []
 
-        state.findings = [
-            Finding(
-                issue=f.get("issue"),
-                severity=f.get("severity", "minor"),
-                line_number=f.get("line_number"),
-                suggestion=f.get("suggestion"),
+        # Store findings in state (mapped to models.Finding)
+        state.findings = []
+        for f in findings_data:
+            sev = f.get("severity", "info").lower()
+            if sev not in ["critical", "warning", "info"]:
+                sev = "warning" if sev in ["major", "high"] else "info"
+            
+            state.findings.append(
+                Finding(
+                    id=str(uuid.uuid4()),
+                    chunk_id=state.chunk.id,
+                    model_id=state.current_model_id,
+                    severity=sev,
+                    category=state.classifier_tag if state.classifier_tag in ["security", "logic", "style", "performance", "test-coverage"] else "logic",
+                    line_number=f.get("line_number"),
+                    description=f.get("issue", ""),
+                    suggestion=f.get("suggestion", ""),
+                    confidence=0.85
+                )
             )
-            for f in findings_data
-        ]
 
+        state.worker_output = str(response.text)
         state.status = "reviewed"
         logger.info(f"Chunk reviewed, found {len(state.findings)} issues")
 
     except httpx.HTTPStatusError as e:
         logger.error(
-            f"Worker returned error for chunk {state.chunk.file}: {e.response.status_code}"
+            f"Worker returned error for chunk {state.chunk.file_path}: {e.response.status_code}"
         )
         state.status = "escalated"
     except Exception as e:
-        logger.error(f"Reviewer node failed for chunk {state.chunk.file}: {e}")
+        logger.error(f"Reviewer node failed for chunk {state.chunk.file_path}: {e}")
         state.status = "escalated"
 
     return state
@@ -304,19 +276,17 @@ def verifier_node(
     Writes: episode row to DB
     """
     try:
-        logger.info(f"Verifying findings for chunk {state.chunk.file}")
+        logger.info(f"Verifying findings for chunk {state.chunk.file_path}")
 
         # Format findings for verification
         findings_text = "\n".join(
             [
-                f"- {f.severity.upper()}: {f.issue} (line {f.line_number})"
-                if f.line_number
-                else f"- {f.severity.upper()}: {f.issue}"
+                f"- Line {f.line_number}: {f.description} (Severity: {f.severity})"
                 for f in state.findings
             ]
         )
 
-        diff_text = "\n".join(state.chunk.lines)
+        diff_text = state.chunk.diff_text
 
         # Call Gemini verifier
         prompt = VERIFIER_PROMPT.format(
@@ -343,8 +313,8 @@ def verifier_node(
 
         # Create and write episode to DB
         state.episode = Episode(
-            chunk_id=state.chunk.file,
-            pr_id=state.pr_id,
+            chunk_id=state.chunk.id,
+            pr_id=state.chunk.pr_id,
             model_id=state.current_model_id,
             tier_index=state.current_tier_index,
             findings=state.findings,
@@ -353,12 +323,12 @@ def verifier_node(
 
         # Write episode to database
         db_store.write_episode(state.episode)
-        logger.info(f"Episode written to database for chunk {state.chunk.file}")
+        logger.info(f"Episode written to database for chunk {state.chunk.file_path}")
 
         state.status = "verified"
 
     except Exception as e:
-        logger.error(f"Verifier node failed for chunk {state.chunk.file}: {e}")
+        logger.error(f"Verifier node failed for chunk {state.chunk.file_path}: {e}")
         state.status = "escalated"
 
     return state
@@ -377,7 +347,7 @@ def escalate_node(state: ChunkReviewState, registry) -> ChunkReviewState:
     Updates: current_model_id, current_tier_index, retry_count
     """
     try:
-        logger.info(f"Escalating chunk {state.chunk.file}")
+        logger.info(f"Escalating chunk {state.chunk.file_path}")
 
         state.retry_count += 1
 
@@ -386,7 +356,7 @@ def escalate_node(state: ChunkReviewState, registry) -> ChunkReviewState:
 
         if next_tier is None:
             logger.error(
-                f"No tier available after {state.retry_count} retries for chunk {state.chunk.file}"
+                f"No tier available after {state.retry_count} retries for chunk {state.chunk.file_path}"
             )
             state.status = "failed"
             return state
@@ -406,7 +376,7 @@ def escalate_node(state: ChunkReviewState, registry) -> ChunkReviewState:
         state.status = "routed"
 
     except Exception as e:
-        logger.error(f"Escalate node failed for chunk {state.chunk.file}: {e}")
+        logger.error(f"Escalate node failed for chunk {state.chunk.file_path}: {e}")
         state.status = "failed"
 
     return state
@@ -435,21 +405,21 @@ def synthesiser_node(
 
         # Group findings by severity
         critical = [f for f in all_findings if f.severity == "critical"]
-        major = [f for f in all_findings if f.severity == "major"]
-        minor = [f for f in all_findings if f.severity == "minor"]
+        warning = [f for f in all_findings if f.severity == "warning"]
+        info = [f for f in all_findings if f.severity == "info"]
 
         # Format findings for Gemini
         findings_text = "CRITICAL:\n"
         findings_text += (
-            "\n".join([f"- {f.issue}" for f in critical]) if critical else "None\n"
+            "\n".join([f"- {f.description}" for f in critical]) if critical else "None\n"
         )
-        findings_text += "\nMAJOR:\n"
+        findings_text += "\nWARNING:\n"
         findings_text += (
-            "\n".join([f"- {f.issue}" for f in major]) if major else "None\n"
+            "\n".join([f"- {f.description}" for f in warning]) if warning else "None\n"
         )
-        findings_text += "\nMINOR:\n"
+        findings_text += "\nINFO:\n"
         findings_text += (
-            "\n".join([f"- {f.issue}" for f in minor]) if minor else "None\n"
+            "\n".join([f"- {f.description}" for f in info]) if info else "None\n"
         )
 
         # Call Gemini synthesiser
@@ -496,8 +466,8 @@ def synthesiser_node(
 
         report = ReviewReport(
             pr_id=pr_id,
-            total_chunks=len(set(f.issue for f in all_findings)),  # approximate
-            chunks_reviewed=len(set(f.issue for f in all_findings)),  # approximate
+            total_chunks=len(set(f.chunk_id for f in all_findings)),
+            chunks_reviewed=len(all_findings),
             summary=summary,
             priority_actions=priority_actions,
             all_findings=all_findings,
@@ -517,3 +487,20 @@ def synthesiser_node(
             priority_actions=[{"action": "Review failed - manual review required"}],
             all_findings=all_findings,
         )
+
+
+# ============================================================================
+# Terminal Nodes
+# ============================================================================
+
+
+def done_node(state: ChunkReviewState) -> ChunkReviewState:
+    """Mark chunk review as successfully completed."""
+    state.status = "done"
+    return state
+
+
+def failed_node(state: ChunkReviewState) -> ChunkReviewState:
+    """Mark chunk review as permanently failed (budget exhausted or max retries hit)."""
+    state.status = "failed"
+    return state

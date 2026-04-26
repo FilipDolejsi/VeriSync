@@ -5,7 +5,10 @@
       "PowerShell(& \"C:\\\\Users\\\\user\\\\miniconda3\\\\envs\\\\verisync\\\\python.exe\" -m pip install google-genai --quiet 2>&1)",
       "PowerShell(& \"C:\\\\Users\\\\user\\\\miniconda3\\\\envs\\\\verisync\\\\python.exe\" \"C:\\\\Users\\\\user\\\\Desktop\\\\verisync\\\\tests\\\\test_llm_providers.py\" 2>&1)",
       "Bash(git fetch *)",
-      "Bash(git diff-tree *)"
+      "Bash(git diff-tree *)",
+      "Bash(python -m pytest tests/test_pipeline.py -v)",
+      "Bash(python -m pip install pytest pytest-asyncio)",
+      "Bash(python -m pip install langgraph groq google-genai httpx aiosqlite pyyaml)"
     ]
   }
 }
