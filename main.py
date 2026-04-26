@@ -29,14 +29,29 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="VeriSync", lifespan=lifespan)
 
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://veri-sync.lovable.app",                                          # published
+        "https://id-preview--68091988-a492-4c0e-b25b-f2cab9f40249.lovable.app",  # preview
+        "https://68091988-a492-4c0e-b25b-f2cab9f40249.lovable.app",              # project URL
+    ],
+    allow_credentials=True,           # REQUIRED for cookies to flow
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ["SESSION_SECRET_KEY"],
     session_cookie="verisync_session",
     max_age=28800,
-    https_only=os.environ.get("HTTPS_ONLY", "true").lower() == "true",
-    same_site="lax",  # same-domain: lax is correct and more secure than none
+    https_only=True,                  # REQUIRED with same_site="none"
+    same_site="none",                 # REQUIRED for cross-site cookies (frontend ≠ backend domain)
 )
+
 
 app.include_router(dashboard_router)
 app.include_router(auth_router)
