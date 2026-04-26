@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% set active = "analytics" %}
+{% block title %}Analytics · VeriSync{% endblock %}
+
+{% block content %}
+<section class="grid">
+  <div class="card span-2">
+    <h2>Findings by severity (last 30 days)</h2>
+    <canvas id="severity-chart" height="120"></canvas>
+  </div>
+
+  <div class="card">
+    <h2>Spend by model</h2>
+    <canvas id="model-spend-chart" height="180"></canvas>
+  </div>
+
+  <div class="card">
+    <h2>Findings by category</h2>
+    <canvas id="category-chart" height="180"></canvas>
+  </div>
+
+  <div class="card span-2">
+    <h2>Model breakdown</h2>
+    <table class="pr-table">
+      <thead>
+        <tr><th>Model</th><th>Calls</th><th>Findings</th><th>Critical</th><th>Total spend</th></tr>
+      </thead>
+      <tbody id="model-breakdown-body"></tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/analytics.js" defer></script>
+{% endblock %}

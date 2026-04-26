@@ -38,7 +38,7 @@ from models import ModelEntry  # noqa: E402
 FAKE_MODEL = ModelEntry(
     id="llama3-8b",
     name="llama3:8b",
-    provider="ollama",
+    provider="qrok-api",
     cost_sats=5,
     endpoint_url="http://localhost:8000/worker/llama3-8b",
     capability_tags=["style", "logic", "security"],
@@ -294,7 +294,7 @@ async def test_worker_endpoint_decrements_wallet_per_chunk():
     from workers.factory import _make_payment_dep, WorkerRequest
 
     model = ModelEntry(
-        id="llama3-8b", name="llama3:8b", provider="ollama",
+        id="llama3-8b", name="llama3:8b", provider="qrok-api",
         cost_sats=5, endpoint_url="", capability_tags=[],
     )
 
@@ -321,7 +321,7 @@ async def test_payment_raises_on_insufficient_funds():
     from workers.factory import _make_payment_dep, WorkerRequest
 
     model = ModelEntry(
-        id="llama3-8b", name="llama3:8b", provider="ollama",
+        id="llama3-8b", name="llama3:8b", provider="qrok-api",
         cost_sats=50, endpoint_url="", capability_tags=[],
     )
 

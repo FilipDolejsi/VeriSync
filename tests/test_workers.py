@@ -22,7 +22,7 @@ from workers.handler import dispatch  # noqa: E402
 OLLAMA_MODEL = ModelEntry(
     id="llama3-8b",
     name="llama3:8b",
-    provider="ollama",
+    provider="qrok-api",
     cost_sats=5,
     endpoint_url="http://localhost:8000/worker/llama3-8b",
     capability_tags=["style"],
@@ -31,9 +31,9 @@ OLLAMA_MODEL = ModelEntry(
 ANTHROPIC_MODEL = ModelEntry(
     id="claude-haiku",
     name="claude-haiku-4-5",
-    provider="anthropic",
+    provider="gemini",
     cost_sats=40,
-    endpoint_url="http://localhost:8000/worker/claude-haiku",
+    endpoint_url="http://localhost:8000/worker/gemini-pro",
     capability_tags=["security"],
 )
 
@@ -41,7 +41,7 @@ ANTHROPIC_MODEL = ModelEntry(
 # ── handler.dispatch ──────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_dispatch_ollama():
+async def test_dispatch_qrok_api():
     mock_response = MagicMock()
     mock_response.json.return_value = {"response": "looks good"}
     mock_response.raise_for_status = MagicMock()
@@ -58,39 +58,38 @@ async def test_dispatch_ollama():
     assert result == "looks good"
     mock_client.post.assert_called_once()
     call_args = mock_client.post.call_args
-    assert "llama3:8b" in str(call_args)
+    assert "8000" in str(call_args)  # Check endpoint_url is in the call
 
 
 @pytest.mark.asyncio
-async def test_dispatch_anthropic():
-    mock_content = MagicMock()
-    mock_content.text = "security issue found"
+async def test_dispatch_gemini():
+    mock_response = MagicMock()
+    mock_response.text = "security issue found"
 
-    mock_message = MagicMock()
-    mock_message.content = [mock_content]
+    mock_genai_client = AsyncMock()
+    mock_genai_client.models.generate_content = MagicMock(return_value=mock_response)
 
-    mock_anthropic_client = AsyncMock()
-    mock_anthropic_client.messages.create = AsyncMock(return_value=mock_message)
-
-    with patch("workers.handler.anthropic.AsyncAnthropic") as mock_cls:
-        mock_cls.return_value = mock_anthropic_client
-        result = await dispatch("review this code", ANTHROPIC_MODEL)
+    with patch("workers.handler.genai.Client") as mock_cls:
+        with patch("workers.handler.GEMINI_API_KEY", "test-gemini-key"):
+            mock_cls.return_value = mock_genai_client
+            result = await dispatch("review this code", ANTHROPIC_MODEL)
 
     assert result == "security issue found"
-    mock_anthropic_client.messages.create.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_dispatch_unknown_provider_raises():
+    # Create a model with a valid provider first, then modify it
     bad_model = ModelEntry(
         id="unknown",
         name="unknown",
-        provider="ollama",  # valid literal
+        provider="qrok-api",
         cost_sats=0,
         endpoint_url="",
         capability_tags=[],
     )
-    bad_model.__dict__["provider"] = "unknown_provider"
+    # Patch the provider attribute directly
+    bad_model.provider = "unknown_provider"  # type: ignore
 
     with pytest.raises(ValueError, match="Unknown provider"):
         await dispatch("task", bad_model)

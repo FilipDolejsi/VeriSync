@@ -1,36 +1,40 @@
 import os
 import httpx
-import anthropic
+from groq import Groq
+from google import genai
 from models import ModelEntry
 
-OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+QROK_API_BASE_URL = os.environ.get("QROK_API_BASE_URL", "http://localhost:8000")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 
 async def dispatch(task: str, model_entry: ModelEntry) -> str:
-    if model_entry.provider == "ollama":
-        return await _call_ollama(task, model_entry.name)
-    elif model_entry.provider == "anthropic":
-        return await _call_anthropic(task, model_entry.name)
+    if model_entry.provider == "qrok-api":
+        return await _call_qrok_api(task, model_entry.endpoint_url)
+    elif model_entry.provider == "gemini":
+        return await _call_gemini(task, model_entry.name)
     else:
         raise ValueError(f"Unknown provider: {model_entry.provider}")
 
 
-async def _call_ollama(task: str, model_name: str) -> str:
+async def _call_qrok_api(task: str, endpoint_url: str) -> str:
     async with httpx.AsyncClient() as client:
         resp = await client.post(
-            f"{OLLAMA_BASE_URL}/api/generate",
-            json={"model": model_name, "prompt": task, "stream": False},
+            endpoint_url,
+            json={"task": task, "stream": False},
             timeout=45.0,
         )
         resp.raise_for_status()
-        return resp.json()["response"]
+        return resp.json().get("response", resp.json().get("result", ""))
 
 
-async def _call_anthropic(task: str, model_name: str) -> str:
-    client = anthropic.AsyncAnthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    message = await client.messages.create(
+async def _call_gemini(task: str, model_name: str) -> str:
+    if not GEMINI_API_KEY:
+        raise ValueError("GEMINI_API_KEY not configured")
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    response = client.models.generate_content(
         model=model_name,
-        max_tokens=1000,
-        messages=[{"role": "user", "content": task}],
+        contents=task,
     )
-    return message.content[0].text
+    return response.text

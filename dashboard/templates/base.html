@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}VeriSync Dashboard{% endblock %}</title>
+  <link rel="stylesheet" href="/static/dashboard.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">⚡</span>
+      <span>Veri<span class="accent">Sync</span></span>
+    </div>
+
+    <nav class="nav">
+      <a href="/dashboard" class="{% if active=='overview' %}active{% endif %}">Overview</a>
+      <a href="/dashboard/history" class="{% if active=='history' %}active{% endif %}">History</a>
+      <a href="/dashboard/analytics" class="{% if active=='analytics' %}active{% endif %}">Analytics</a>
+    </nav>
+
+    <div class="user">
+      {% if user %}
+        <span class="balance" id="sat-balance" data-balance="{{ user.sat_balance }}">
+          ⚡ {{ "{:,}".format(user.sat_balance) }} sats
+        </span>
+        <img class="avatar" src="{{ user.avatar_url }}" alt="{{ user.username }}" />
+        <span class="username">{{ user.username }}</span>
+        <a class="logout" href="/auth/logout">Sign out</a>
+      {% else %}
+        <a class="login" href="/auth/github/login">Sign in with GitHub</a>
+      {% endif %}
+    </div>
+  </header>
+
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

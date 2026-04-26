@@ -9,7 +9,7 @@ from pydantic import BaseModel
 class ModelEntry(BaseModel):
     id: str
     name: str
-    provider: Literal["gemini", "groq", "qrok-api"]
+    provider: Literal["gemini", "qrok-api"]
     cost_sats: int
     endpoint_url: str
     capability_tags: List[str]

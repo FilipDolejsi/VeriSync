@@ -11,7 +11,7 @@ mock_registry = [
     ModelEntry(
         id="llama3-8b",
         name="llama3:8b",
-        provider="ollama",
+        provider="qrok-api",
         cost_sats=5,
         endpoint_url="http://localhost:8000/worker/llama3-8b",
         capability_tags=["style", "classify"]
@@ -19,7 +19,7 @@ mock_registry = [
     ModelEntry(
         id="mistral-7b",
         name="mistral:7b",
-        provider="ollama",
+        provider="qrok-api",
         cost_sats=10,
         endpoint_url="http://localhost:8000/worker/mistral-7b",
         capability_tags=["logic"]

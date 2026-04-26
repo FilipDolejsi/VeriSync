@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% set active = "history" %}
+{% block title %}History · VeriSync{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h2>Pull request history</h2>
+  <form class="filters" method="get">
+    <input type="text" name="repo" placeholder="filter by repo…" value="{{ filters.repo or '' }}" />
+    <select name="severity">
+      <option value="">all severities</option>
+      <option value="critical" {% if filters.severity == "critical" %}selected{% endif %}>critical</option>
+      <option value="warning"  {% if filters.severity == "warning" %}selected{% endif %}>warning</option>
+      <option value="info"     {% if filters.severity == "info" %}selected{% endif %}>info</option>
+    </select>
+    <button type="submit">Apply</button>
+  </form>
+
+  <table class="pr-table">
+    <thead>
+      <tr><th>PR</th><th>Repo</th><th>Findings</th><th>Cost</th><th>Models used</th><th>When</th></tr>
+    </thead>
+    <tbody>
+      {% for pr in prs %}
+      <tr>
+        <td><a href="{{ pr.pr_url }}" target="_blank">#{{ pr.pr_number }}</a> {{ pr.title }}</td>
+        <td class="mono">{{ pr.repo }}</td>
+        <td>
+          <span class="pill red">{{ pr.critical_count }}</span>
+          <span class="pill yellow">{{ pr.warning_count }}</span>
+          <span class="pill blue">{{ pr.info_count }}</span>
+        </td>
+        <td class="mono accent">⚡ {{ pr.total_cost_sats }}</td>
+        <td class="mono small">{{ pr.model_breakdown_summary }}</td>
+        <td class="muted">{{ pr.created_at }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="empty">No reviews match those filters.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <nav class="pagination">
+    {% if page > 1 %}<a href="?page={{ page - 1 }}">‹ Prev</a>{% endif %}
+    <span>Page {{ page }} / {{ total_pages }}</span>
+    {% if page < total_pages %}<a href="?page={{ page + 1 }}">Next ›</a>{% endif %}
+  </nav>
+</section>
+{% endblock %}

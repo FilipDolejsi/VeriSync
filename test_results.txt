@@ -1,0 +1,28 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0 -- /home/filip/VeriSync/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /home/filip/VeriSync
+plugins: anyio-4.13.0, asyncio-1.3.0, langsmith-0.7.36
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 43 items / 1 error
+
+==================================== ERRORS ====================================
+___________________ ERROR collecting tests/test_pipeline.py ____________________
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for ModelEntry
+    provider
+      Input should be 'gemini' or 'qrok-api' [type=literal_error, input_value='ollama', input_type=str]
+        For further information visit https://errors.pydantic.dev/2.13/v/literal_error
+------------------------------- Captured stderr --------------------------------
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 7133.17it/s]
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/authlib/_joserfc_helpers.py:8
+  /home/filip/VeriSync/.venv/lib/python3.12/site-packages/authlib/_joserfc_helpers.py:8: AuthlibDeprecationWarning: authlib.jose module is deprecated, please use joserfc instead.
+  It will be compatible before version 2.0.0.
+    from authlib.jose import ECKey
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/test_pipeline.py - pydantic_core._pydantic_core.ValidationError: ...
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+========================= 1 warning, 1 error in 7.05s ==========================
