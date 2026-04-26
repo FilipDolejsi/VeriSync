@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 export const API = import.meta.env.VITE_API_URL ?? 'https://verisync-j5em.onrender.com';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
