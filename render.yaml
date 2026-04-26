@@ -15,7 +15,9 @@ services:
         sync: false
       - key: SESSION_SECRET_KEY
         generateValue: true
-      - key: ANTHROPIC_API_KEY
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
         sync: false
       - key: WEBHOOK_URL
         sync: false

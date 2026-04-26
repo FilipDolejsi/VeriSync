@@ -1,27 +1,27 @@
 models:
   - id: llama3-8b
-    name: "llama3:8b"
+    name: "llama-3.1-8b-instant"
     provider: qrok-api
     cost_sats: 5
     endpoint_url: "http://localhost:8000/worker/llama3-8b"
     capability_tags: ["style", "classify"]
 
   - id: mistral-7b
-    name: "mistral:7b"
+    name: "mixtral-8x7b-32768"
     provider: qrok-api
     cost_sats: 10
     endpoint_url: "http://localhost:8000/worker/mistral-7b"
     capability_tags: ["style", "logic", "classify"]
 
   - id: gemma2-9b
-    name: "gemma2:9b"
+    name: "gemma2-9b-it"
     provider: qrok-api
     cost_sats: 12
     endpoint_url: "http://localhost:8000/worker/gemma2-9b"
     capability_tags: ["logic", "test-coverage"]
 
   - id: llama3-70b
-    name: "llama3:70b"
+    name: "llama-3.3-70b-versatile"
     provider: qrok-api
     cost_sats: 18
     endpoint_url: "http://localhost:8000/worker/llama3-70b"
