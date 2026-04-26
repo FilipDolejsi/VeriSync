@@ -33,9 +33,12 @@ app = FastAPI(title="VeriSync", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://veri-sync.lovable.app",                                              # published
-        "https://id-preview--68091988-a492-4c0e-b25b-f2cab9f40249.lovable.app",      # preview
-        "https://68091988-a492-4c0e-b25b-f2cab9f40249.lovable.app",                  # project URL
+        "https://veri-sync.lovable.app",
+        "https://id-preview--68091988-a492-4c0e-b25b-f2cab9f40249.lovable.app",
+        "https://68091988-a492-4c0e-b25b-f2cab9f40249.lovable.app",
+        "https://68091988-a492-4c0e-b25b-f2cab9f40249.lovableproject.com",  # editor iframe
+        "http://localhost:5173",  # local dev
+        "http://localhost:8080",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -47,8 +50,10 @@ app.add_middleware(
     secret_key=os.environ["SESSION_SECRET_KEY"],
     session_cookie="verisync_session",
     max_age=28800,
-    https_only=False,  # flip to True in prod
+    https_only=True,        # REQUIRED on Render (HTTPS)
+    same_site="none",       # REQUIRED for cross-site cookies
 )
+
 
 app.include_router(auth_router)
 app.include_router(webhook_router)
