@@ -44,6 +44,9 @@ class Episode:
     cost_sats: int
     findings: List[Any]
     verifier_accepted: bool
+    classifier_tag: str = ""
+    repo_full_name: str = ""
+    diff_text: str = ""
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
 
@@ -124,6 +127,38 @@ def classifier_node(state: ChunkReviewState) -> ChunkReviewState:
 
 
 # ============================================================================
+# Researcher Node
+# ============================================================================
+
+_MIN_REPUTATION_EPISODES = 20
+
+
+def researcher_node(state: ChunkReviewState) -> ChunkReviewState:
+    """Re-sort registry by effective_cost (reputation) when sufficient history exists.
+
+    If fewer than _MIN_REPUTATION_EPISODES episodes have been recorded, falls back
+    to the registry's natural cost-ascending order so the router still works cold.
+    """
+    try:
+        from db.store import get_episode_count_sync
+        from registry.loader import get_reputation_sorted_registry_sync
+
+        count = get_episode_count_sync()
+        if count >= _MIN_REPUTATION_EPISODES:
+            state.registry = get_reputation_sorted_registry_sync(state.registry)
+            logger.info("Researcher: reputation-sorted registry (%d episodes)", count)
+        else:
+            logger.info(
+                "Researcher: cold start (%d < %d), using cost order",
+                count, _MIN_REPUTATION_EPISODES,
+            )
+    except Exception as e:
+        logger.error("Researcher node failed: %s", e)
+
+    return state
+
+
+# ============================================================================
 # Router Node
 # ============================================================================
 
@@ -132,7 +167,7 @@ def router_node(state: ChunkReviewState, registry, router) -> ChunkReviewState:
     """
     Route the chunk to appropriate model tier using registry and router.
 
-    Calls: router.predict_model(diff_text, tag, registry)
+    Calls: router.predict_model(diff_text, tag, registry, ...)
     Sets: state.current_model_id, state.current_tier_index
     """
     try:
@@ -142,11 +177,16 @@ def router_node(state: ChunkReviewState, registry, router) -> ChunkReviewState:
 
         diff_text = state.chunk.diff_text
 
-        # Call router to predict best model
+        # Call router to predict best model; pass structured features as extra dims
         model_info = router.predict_model(
             diff_text=diff_text,
             tag=state.classifier_tag,
             registry=registry,
+            language=state.chunk.language or "unknown",
+            lines_changed=state.chunk.lines_changed or 0,
+            file_path=state.chunk.file_path or "",
+            user_id=state.user_id,
+            repo_full_name=state.repo_full_name,
         )
 
         state.current_model_id = model_info.get("model_id")
@@ -329,11 +369,14 @@ def verifier_node(
             chunk_id=state.chunk.id,
             pr_id=state.chunk.pr_id,
             user_id=state.user_id,
+            repo_full_name=state.repo_full_name,
             model_id=state.current_model_id,
             tier_index=state.current_tier_index,
             cost_sats=state.chunk_cost_sats,
             findings=state.findings,
             verifier_accepted=state.verifier_accepted,
+            classifier_tag=state.classifier_tag or "",
+            diff_text=state.chunk.diff_text or "",
         )
 
         # Write episode to database

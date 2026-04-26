@@ -9,7 +9,7 @@ from pydantic import BaseModel
 class ModelEntry(BaseModel):
     id: str
     name: str
-    provider: Literal["ollama", "anthropic"]
+    provider: Literal["gemini", "groq", "qrok-api"]
     cost_sats: int
     endpoint_url: str
     capability_tags: List[str]
@@ -87,10 +87,22 @@ class RouterDecision(BaseModel):
     used_router: bool
 
 
+class ReputationScore(BaseModel):
+    """Historical performance record for a single reviewer model."""
+    model_id: str
+    total_reviews: int
+    pass_rate: float          # AVG(verifier_pass)
+    avg_cost_sats: float      # AVG(cost_sats)
+    avg_findings: float       # AVG(finding_count)
+    effective_cost: float     # avg_cost_sats / pass_rate  (inf if pass_rate==0)
+    reputation_score: float   # pass_rate * avg_findings, capped at 1.0; shown as stars
+
+
 class ChunkReviewState(BaseModel):
     chunk: PRChunk
     user_id: str
     wallet_id: str = ""
+    repo_full_name: str = ""  # propagated from webhook for personalised routing
     registry: List[ModelEntry]
     budget_remaining_sats: int
     current_model_id: str

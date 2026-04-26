@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VeriSync Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0f1117;
+      --surface: #1a1d27;
+      --border:  #2a2d3a;
+      --accent:  #7c6af7;
+      --green:   #22c55e;
+      --yellow:  #eab308;
+      --red:     #ef4444;
+      --text:    #e2e8f0;
+      --muted:   #64748b;
+      --radius:  10px;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    header h1 { font-size: 1.5rem; font-weight: 700; }
+    header span { color: var(--accent); }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    .card h2 {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    /* ── Stat chips ── */
+    .stat-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 4px;
+    }
+
+    .stat {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 16px;
+      flex: 1;
+      min-width: 100px;
+    }
+
+    .stat .label { font-size: 0.75rem; color: var(--muted); }
+    .stat .value { font-size: 1.4rem; font-weight: 700; margin-top: 4px; }
+
+    /* ── Leaderboard table ── */
+    .leaderboard {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    .leaderboard th {
+      text-align: left;
+      padding: 6px 10px;
+      color: var(--muted);
+      font-weight: 500;
+      font-size: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .leaderboard td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .leaderboard tr:last-child td { border-bottom: none; }
+
+    .leaderboard tr:hover td { background: rgba(124,106,247,0.06); }
+
+    .stars { color: var(--yellow); letter-spacing: 2px; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+
+    .badge-green  { background: rgba(34,197,94,0.15);  color: var(--green); }
+    .badge-yellow { background: rgba(234,179,8,0.15);  color: var(--yellow); }
+    .badge-red    { background: rgba(239,68,68,0.15);  color: var(--red); }
+
+    /* ── Router stats ── */
+    .router-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .router-stat {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+
+    .router-stat .label { font-size: 0.73rem; color: var(--muted); }
+    .router-stat .value { font-size: 1.2rem; font-weight: 700; margin-top: 3px; }
+    .router-stat .value.accent { color: var(--accent); }
+    .router-stat .value.green  { color: var(--green); }
+
+    /* ── Spend table ── */
+    .spend-bar-wrap { margin-top: 4px; }
+    .spend-bar-row  { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 0.82rem; }
+    .spend-bar-label { width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+    .spend-bar-track { flex: 1; height: 6px; background: var(--border); border-radius: 3px; }
+    .spend-bar-fill  { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.6s ease; }
+    .spend-bar-amt   { width: 56px; text-align: right; }
+
+    /* ── History table ── */
+    .history { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .history th { color: var(--muted); font-size: 0.73rem; padding: 5px 8px; text-align: left; border-bottom: 1px solid var(--border); }
+    .history td { padding: 7px 8px; border-bottom: 1px solid var(--border); }
+    .history tr:last-child td { border-bottom: none; }
+    .history a { color: var(--accent); text-decoration: none; }
+    .history a:hover { text-decoration: underline; }
+
+    .empty { color: var(--muted); font-size: 0.85rem; padding: 12px 0; }
+
+    .loader { color: var(--muted); font-size: 0.82rem; animation: pulse 1.2s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.4 } }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Veri<span>Sync</span> Dashboard</h1>
+</header>
+
+<div class="grid">
+
+  <!-- ── Overview stats ────────────────────────────────────────────── -->
+  <div class="card" style="grid-column: 1 / -1;">
+    <h2>Overview</h2>
+    <div class="stat-row" id="overview-stats">
+      <div class="loader">Loading…</div>
+    </div>
+  </div>
+
+  <!-- ── Model leaderboard ─────────────────────────────────────────── -->
+  <div class="card" style="grid-column: 1 / -1;">
+    <h2>Model Leaderboard — effective cost (sats / pass)</h2>
+    <div id="leaderboard-wrap"><div class="loader">Loading…</div></div>
+  </div>
+
+  <!-- ── Router stats ──────────────────────────────────────────────── -->
+  <div class="card">
+    <h2>Router</h2>
+    <div class="router-grid" id="router-stats">
+      <div class="loader">Loading…</div>
+    </div>
+  </div>
+
+  <!-- ── Spend by model ─────────────────────────────────────────────── -->
+  <div class="card">
+    <h2>Spend by Model (sats)</h2>
+    <div class="spend-bar-wrap" id="spend-chart"><div class="loader">Loading…</div></div>
+  </div>
+
+  <!-- ── PR History ────────────────────────────────────────────────── -->
+  <div class="card" style="grid-column: 1 / -1;">
+    <h2>PR History</h2>
+    <div id="history-wrap"><div class="loader">Loading…</div></div>
+  </div>
+
+</div>
+
+<script>
+// ── Helpers ────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+function stars(score) {
+  const filled = Math.round(score * 5);
+  return '★'.repeat(filled) + '☆'.repeat(5 - filled);
+}
+
+function badge(passRate) {
+  if (passRate >= 0.8) return `<span class="badge badge-green">${(passRate*100).toFixed(0)}% pass</span>`;
+  if (passRate >= 0.5) return `<span class="badge badge-yellow">${(passRate*100).toFixed(0)}% pass</span>`;
+  return `<span class="badge badge-red">${(passRate*100).toFixed(0)}% pass</span>`;
+}
+
+async function fetchJSON(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  return r.json();
+}
+
+// ── Load reputation leaderboard ────────────────────────────────────────────
+async function loadReputation() {
+  try {
+    const data = await fetchJSON('/api/reputation');
+    const wrap = $('leaderboard-wrap');
+    if (!data.length) { wrap.innerHTML = '<p class="empty">No episode data yet — run the seeder first.</p>'; return; }
+
+    let html = `
+      <table class="leaderboard">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Model</th>
+            <th>Stars</th>
+            <th>Pass rate</th>
+            <th>Avg cost</th>
+            <th>Effective cost</th>
+            <th>Reviews</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    data.forEach((r, i) => {
+      const eff = r.effective_cost === Infinity ? '∞' : r.effective_cost.toFixed(1);
+      html += `
+        <tr>
+          <td>${i + 1}</td>
+          <td><strong>${r.name || r.model_id}</strong><br><small style="color:var(--muted)">${r.model_id}</small></td>
+          <td class="stars" title="${r.reputation_score.toFixed(2)}">${stars(r.reputation_score)}</td>
+          <td>${badge(r.pass_rate)}</td>
+          <td>${r.avg_cost_sats.toFixed(1)}</td>
+          <td><strong>${eff}</strong></td>
+          <td>${r.total_reviews}</td>
+        </tr>
+      `;
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  } catch (e) {
+    $('leaderboard-wrap').innerHTML = `<p class="empty">Error: ${e.message}</p>`;
+  }
+}
+
+// ── Load analytics ─────────────────────────────────────────────────────────
+async function loadAnalytics() {
+  try {
+    const data = await fetchJSON('/api/analytics');
+    const t = data.totals || {};
+
+    // Overview stats
+    $('overview-stats').innerHTML = `
+      <div class="stat"><div class="label">Total PRs</div><div class="value">${t.total_prs ?? 0}</div></div>
+      <div class="stat"><div class="label">Total spent (sats)</div><div class="value">${t.total_spent ?? 0}</div></div>
+      <div class="stat"><div class="label">Verifier pass rate</div><div class="value">${((t.verifier_pass_rate ?? 0)*100).toFixed(1)}%</div></div>
+    `;
+
+    // Router stats
+    const ro = data.router || {};
+    $('router-stats').innerHTML = `
+      <div class="router-stat">
+        <div class="label">Model trained</div>
+        <div class="value ${ro.model_exists ? 'green' : ''}">${ro.model_exists ? 'Yes' : 'No'}</div>
+      </div>
+      <div class="router-stat">
+        <div class="label">Sats saved vs naive</div>
+        <div class="value accent">${ro.sats_saved_vs_naive ?? 0}</div>
+      </div>
+      <div class="router-stat">
+        <div class="label">Users personalised</div>
+        <div class="value">${ro.total_users_personalised ?? 0}</div>
+      </div>
+      <div class="router-stat">
+        <div class="label">Repos tracked</div>
+        <div class="value">${ro.total_repos_tracked ?? 0}</div>
+      </div>
+    `;
+
+    // Spend chart
+    const spend = data.spend_by_model || [];
+    if (!spend.length) {
+      $('spend-chart').innerHTML = '<p class="empty">No spend data yet.</p>';
+    } else {
+      const maxSats = Math.max(...spend.map(s => s.total_sats));
+      let html = '';
+      spend.forEach(s => {
+        const pct = maxSats ? (s.total_sats / maxSats * 100) : 0;
+        html += `
+          <div class="spend-bar-row">
+            <div class="spend-bar-label" title="${s.model_id}">${s.model_id}</div>
+            <div class="spend-bar-track"><div class="spend-bar-fill" style="width:${pct}%"></div></div>
+            <div class="spend-bar-amt">${s.total_sats}</div>
+          </div>
+        `;
+      });
+      $('spend-chart').innerHTML = html;
+    }
+  } catch (e) {
+    $('overview-stats').innerHTML = `<p class="empty">Error: ${e.message}</p>`;
+    $('router-stats').innerHTML   = '';
+    $('spend-chart').innerHTML    = '';
+  }
+}
+
+// ── Load history ───────────────────────────────────────────────────────────
+async function loadHistory() {
+  try {
+    const data = await fetchJSON('/api/history');
+    const wrap = $('history-wrap');
+    if (!data.length) { wrap.innerHTML = '<p class="empty">No PR reviews yet.</p>'; return; }
+
+    let html = `
+      <table class="history">
+        <thead>
+          <tr>
+            <th>Repo</th><th>PR</th><th>Status</th>
+            <th>Findings</th><th>Cost (sats)</th><th>Started</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    data.forEach(pr => {
+      const started = pr.started_at ? new Date(pr.started_at).toLocaleString() : '—';
+      const statusBadge = pr.status === 'done'
+        ? `<span class="badge badge-green">${pr.status}</span>`
+        : pr.status === 'failed'
+          ? `<span class="badge badge-red">${pr.status}</span>`
+          : `<span class="badge badge-yellow">${pr.status}</span>`;
+      const link = pr.pr_url ? `<a href="${pr.pr_url}" target="_blank">#${pr.pr_number}</a>` : `#${pr.pr_number}`;
+      html += `
+        <tr>
+          <td>${pr.repo_full_name || '—'}</td>
+          <td>${link} ${pr.pr_title ? `<small style="color:var(--muted)">${pr.pr_title.slice(0,40)}</small>` : ''}</td>
+          <td>${statusBadge}</td>
+          <td>${pr.finding_count ?? 0}</td>
+          <td>${pr.total_cost_sats ?? 0}</td>
+          <td><small>${started}</small></td>
+        </tr>
+      `;
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  } catch (e) {
+    $('history-wrap').innerHTML = `<p class="empty">Error: ${e.message}</p>`;
+  }
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+loadReputation();
+loadAnalytics();
+loadHistory();
+
+// Refresh every 30 s
+setInterval(() => { loadReputation(); loadAnalytics(); loadHistory(); }, 30_000);
+
+// Live SSE updates
+(function connectSSE() {
+  const es = new EventSource('/events');
+  es.onmessage = e => {
+    try {
+      const ev = JSON.parse(e.data);
+      if (['review_done', 'review_failed', 'router_retrained'].includes(ev.type)) {
+        loadReputation();
+        loadAnalytics();
+        loadHistory();
+      }
+    } catch (_) {}
+  };
+  es.onerror = () => setTimeout(connectSSE, 5000);
+})();
+</script>
+</body>
+</html>

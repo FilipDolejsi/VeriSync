@@ -6,6 +6,7 @@ from langgraph.graph import StateGraph, START, END
 from models import ChunkReviewState, PRChunk, ModelEntry
 from pipeline.nodes import (
     classifier_node,
+    researcher_node,
     router_node,
     reviewer_node,
     verifier_node,
@@ -47,6 +48,9 @@ def build_graph():
     def _classifier(state: ChunkReviewState):
         return classifier_node(state)
 
+    def _researcher(state: ChunkReviewState):
+        return researcher_node(state)
+
     def _router(state: ChunkReviewState):
         # wrap the registry for get_tier / get_next_tier methods expected by nodes.py
         reg = Registry(state.registry)
@@ -73,6 +77,7 @@ def build_graph():
         return failed_node(state)
 
     workflow.add_node("classifier", _classifier)
+    workflow.add_node("researcher", _researcher)
     workflow.add_node("router", _router)
     workflow.add_node("reviewer", _reviewer)
     workflow.add_node("verifier", _verifier)
@@ -81,7 +86,8 @@ def build_graph():
     workflow.add_node("failed", _failed)
 
     workflow.add_edge(START, "classifier")
-    workflow.add_edge("classifier", "router")
+    workflow.add_edge("classifier", "researcher")
+    workflow.add_edge("researcher", "router")
     workflow.add_edge("router", "reviewer")
     workflow.add_edge("reviewer", "verifier")
 
@@ -112,6 +118,7 @@ async def run_chunk_review(
     registry: List[ModelEntry],
     budget: int,
     wallet_id: str = "",
+    repo_full_name: str = "",
 ) -> ChunkReviewState:
     """
     Entry point per chunk. Initializes state and invokes the graph.
@@ -120,6 +127,7 @@ async def run_chunk_review(
         chunk=chunk,
         user_id=user_id,
         wallet_id=wallet_id,
+        repo_full_name=repo_full_name,
         registry=registry,
         budget_remaining_sats=budget,
         current_model_id="",
@@ -140,13 +148,14 @@ async def run_pr_review(
     budget: int,
     wallet_id: str = "",
     pr_url: str = "",
+    repo_full_name: str = "",
 ) -> ReviewReport:
     """
     Orchestrates all chunks for a PR concurrently using asyncio.gather.
     After all chunks are done, synthesises the final report.
     """
     tasks = [
-        run_chunk_review(chunk, user_id, registry, budget, wallet_id)
+        run_chunk_review(chunk, user_id, registry, budget, wallet_id, repo_full_name)
         for chunk in chunks
     ]
 

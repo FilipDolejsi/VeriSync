@@ -100,17 +100,18 @@ async def _run_review(
             )
         )
 
-    # 4. Persist chunk records
+    # 4. Persist chunk records (include diff_text for router training features)
     if model_chunks:
         async with get_db() as db:
             for mc in model_chunks:
                 await db.execute(
                     """
                     INSERT OR IGNORE INTO chunks
-                        (id, pr_id, file_path, hunk_index, language, lines_changed)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                        (id, pr_id, file_path, hunk_index, language, lines_changed, diff_text)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
-                    (mc.id, mc.pr_id, mc.file_path, mc.hunk_index, mc.language, mc.lines_changed),
+                    (mc.id, mc.pr_id, mc.file_path, mc.hunk_index,
+                     mc.language, mc.lines_changed, mc.diff_text),
                 )
             await db.commit()
 
@@ -136,6 +137,7 @@ async def _run_review(
                 budget=budget,
                 wallet_id=wallet_id,
                 pr_url=pr_url,
+                repo_full_name=repo_full_name,
             )
         else:
             from pipeline.nodes import ReviewReport
